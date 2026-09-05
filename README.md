@@ -1,1 +1,1 @@
-# Linux Droid Desktop Environment 
+# Linux Droid Display Manager 
