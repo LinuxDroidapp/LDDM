@@ -1,0 +1,31 @@
+set(UNIT_TESTS
+    test_version
+    test_error
+    test_logging
+    test_config
+    test_lifecycle
+    test_platform
+    test_resource
+    test_session
+)
+
+set(INTEGRATION_TESTS
+    test_lifecycle_integration
+)
+
+foreach(test_name ${UNIT_TESTS})
+    add_executable(${test_name} unit/${test_name}.cpp)
+    target_link_libraries(${test_name} PRIVATE lddm_core)
+    target_include_directories(${test_name} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+    target_compile_options(${test_name} PRIVATE ${LDDM_COMMON_WARNINGS})
+    add_test(NAME ${test_name} COMMAND ${test_name})
+endforeach()
+
+foreach(test_name ${INTEGRATION_TESTS})
+    add_executable(${test_name} integration/${test_name}.cpp)
+    target_link_libraries(${test_name} PRIVATE lddm_core)
+    target_include_directories(${test_name} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+    target_compile_options(${test_name} PRIVATE ${LDDM_COMMON_WARNINGS})
+    add_test(NAME ${test_name} COMMAND ${test_name})
+endforeach()
+
