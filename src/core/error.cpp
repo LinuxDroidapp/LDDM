@@ -45,6 +45,12 @@ std::string_view to_string(ErrorCode code) noexcept {
         case ErrorCode::ProcessTimeout:            return "ProcessTimeout";
         case ErrorCode::ProcessSignalFailed:       return "ProcessSignalFailed";
         case ErrorCode::ProcessNotFound:           return "ProcessNotFound";
+        case ErrorCode::ProcessExecFailed:         return "ProcessExecFailed";
+        case ErrorCode::ProcessInvalidState:       return "ProcessInvalidState";
+        case ErrorCode::ProcessWaitFailed:         return "ProcessWaitFailed";
+        case ErrorCode::ProcessTerminationFailed:  return "ProcessTerminationFailed";
+        case ErrorCode::ProcessRegistrationFailed: return "ProcessRegistrationFailed";
+        case ErrorCode::ProcessCleanupFailed:      return "ProcessCleanupFailed";
         case ErrorCode::PlatformSyscallFailed:     return "PlatformSyscallFailed";
         case ErrorCode::PlatformFdError:           return "PlatformFdError";
         case ErrorCode::PlatformPathResolution:    return "PlatformPathResolution";

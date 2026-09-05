@@ -81,7 +81,13 @@ set(LDDM_CORE_SOURCES
     src/platform/paths.cpp
     src/platform/signal_handler.cpp
     src/platform/platform.cpp
+    src/platform/process.cpp
     src/process/process_types.cpp
+    src/process/process_spec.cpp
+    src/process/process_diagnostics.cpp
+    src/process/process.cpp
+    src/process/process_registry.cpp
+    src/process/process_supervisor.cpp
     src/session/session_id.cpp
     src/session/session_state.cpp
     src/session/session_config.cpp

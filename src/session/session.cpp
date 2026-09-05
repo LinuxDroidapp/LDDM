@@ -103,6 +103,10 @@ Result<void> Session::initialize() {
     // 2. Prepare environment variables
     environment_.populate_session_defaults(config_, paths_);
 
+    // 2b. Initialize Process Supervisor
+    supervisor_ = std::make_shared<ProcessSupervisor>();
+    supervisor_->set_base_environment(environment_.to_vector());
+
     // 3. Initialize attached components with session context
     auto ctx = context();
     for (const auto& comp : components_) {
@@ -155,6 +159,10 @@ Result<void> Session::start() {
         if (!prep_res.has_value()) {
             return prep_res;
         }
+    }
+
+    if (supervisor_) {
+        supervisor_->set_base_environment(environment_.to_vector());
     }
 
     auto start_trans = state_machine_.transition_to(SessionState::STARTING, "Starting session components");
@@ -217,6 +225,11 @@ Result<void> Session::stop() {
 
     (void)state_machine_.transition_to(SessionState::STOPPING, "Stopping session components");
 
+    // Stop supervised child processes
+    if (supervisor_) {
+        (void)supervisor_->stop_all();
+    }
+
     // Stop components in reverse order
     for (auto it = components_.rbegin(); it != components_.rend(); ++it) {
         if (*it && (*it)->is_running()) {
@@ -248,6 +261,11 @@ Result<void> Session::fail(Error error) {
 
     (void)state_machine_.transition_to(SessionState::FAILED, error.message());
 
+    // Stop supervised child processes
+    if (supervisor_) {
+        (void)supervisor_->stop_all();
+    }
+
     // Teardown components
     for (auto it = components_.rbegin(); it != components_.rend(); ++it) {
         if (*it && (*it)->is_running()) {
@@ -270,6 +288,10 @@ Result<void> Session::cleanup() noexcept {
         current == SessionState::READY ||
         current == SessionState::INITIALIZING) {
         (void)stop();
+    }
+
+    if (supervisor_) {
+        (void)supervisor_->stop_all();
     }
 
     (void)resources_.cleanup();

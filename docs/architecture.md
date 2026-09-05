@@ -100,3 +100,25 @@
    - `SessionManager`: Multi-session registry, active session designation, and controlled teardown.
    - Contracts: `ISessionComponent`, `ICompositorInstance`, `IDesktopEnvironmentInstance`.
 
+6. **`lddm::process`** (Phase L2):
+   - `Process`: Encapsulates a single supervised OS process lifecycle with state transitions (`CREATED` -> `STARTING` -> `RUNNING` -> `STOPPING` -> `EXITED`/`FAILED`).
+   - `ProcessSpec`: Executable path, argument vector, environment map, working directory, and stream policies.
+   - `StreamPolicy`: Configurable stream routing (`Inherit`, `Null`, `Close`, `File`, `Pipe`).
+   - `ProcessRegistry`: Thread-safe registry indexable by PID, handle, and component name.
+   - `ProcessSupervisor`: High-level process lifecycle orchestrator with non-blocking reaping (`waitpid(WNOHANG)`), process group isolation (`setpgid`), graceful termination (`SIGTERM`), and timeout escalation to `SIGKILL`.
+   - `ProcessDiagnostics`: Process runtime metrics, exit info recording, and lifecycle history audit logs.
+   - `ProcessEventDispatcher`: Observer event stream (`Started`, `Exited`, `Failed`, `Signaled`).
+   - Integration with `Session`: Owned directly by `Session`, initialized in `session.initialize()`, environment synchronized in `session.start()`, and stopped gracefully in `session.stop()`.
+
+---
+
+## 4. Future Phase Roadmap
+
+- **Phase L3 — Weston Compositor Supervision**:
+  - Implement `ICompositorInstance` backed by `ProcessSupervisor`.
+  - Supervise Weston Wayland compositor process, arguments (`--backend`, `--socket`, `--idle-time`), socket readiness detection, and recovery.
+- **Phase L4 — Desktop Environment & Services**:
+  - Implement `IDesktopEnvironmentInstance` backed by `ProcessSupervisor`.
+  - Supervise LDDE desktop environment, panel, notification service, and application lifetime.
+
+

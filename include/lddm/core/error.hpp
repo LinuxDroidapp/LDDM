@@ -55,6 +55,12 @@ enum class ErrorCode : std::uint32_t {
     ProcessTimeout             = 302,
     ProcessSignalFailed        = 303,
     ProcessNotFound            = 304,
+    ProcessExecFailed          = 305,
+    ProcessInvalidState        = 306,
+    ProcessWaitFailed          = 307,
+    ProcessTerminationFailed   = 308,
+    ProcessRegistrationFailed  = 309,
+    ProcessCleanupFailed       = 310,
 
     // Platform errors (400-499)
     PlatformSyscallFailed      = 400,

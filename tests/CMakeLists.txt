@@ -14,11 +14,20 @@ set(UNIT_TESTS
     test_session_lifecycle
     test_session_manager
     test_session_diagnostics
+    test_process_types
+    test_process_spec
+    test_process_registry
+    test_process_diagnostics
+    test_process_events
 )
 
 set(INTEGRATION_TESTS
     test_lifecycle_integration
     test_session_integration
+    test_process_execution
+    test_process_termination
+    test_process_supervisor_integration
+    test_session_supervisor_integration
 )
 
 foreach(test_name ${UNIT_TESTS})

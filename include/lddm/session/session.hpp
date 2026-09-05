@@ -9,6 +9,7 @@
 #include "lddm/session/session_diagnostics.hpp"
 #include "lddm/session/session_contract.hpp"
 #include "lddm/session/session_context.hpp"
+#include "lddm/process/process_supervisor.hpp"
 #include "lddm/core/result.hpp"
 
 #include <memory>
@@ -47,6 +48,7 @@ public:
 
     [[nodiscard]] ICompositorInstance* compositor() const noexcept { return compositor_.get(); }
     [[nodiscard]] IDesktopEnvironmentInstance* desktop() const noexcept { return desktop_.get(); }
+    [[nodiscard]] std::shared_ptr<ProcessSupervisor> supervisor() const noexcept { return supervisor_; }
 
     // Lifecycle Operations
     Result<void> initialize();
@@ -76,6 +78,7 @@ private:
     std::vector<std::shared_ptr<ISessionComponent>> components_;
     std::shared_ptr<ICompositorInstance> compositor_;
     std::shared_ptr<IDesktopEnvironmentInstance> desktop_;
+    std::shared_ptr<ProcessSupervisor> supervisor_;
 };
 
 } // namespace lddm
