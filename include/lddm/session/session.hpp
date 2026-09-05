@@ -50,6 +50,8 @@ public:
     [[nodiscard]] IDesktopEnvironmentInstance* desktop() const noexcept { return desktop_.get(); }
     [[nodiscard]] std::shared_ptr<ProcessSupervisor> supervisor() const noexcept { return supervisor_; }
 
+    [[nodiscard]] bool is_graphical_session_ready() const noexcept;
+
     // Lifecycle Operations
     Result<void> initialize();
     Result<void> prepare();

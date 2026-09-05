@@ -103,6 +103,12 @@ set(LDDM_CORE_SOURCES
     src/weston/weston_readiness.cpp
     src/weston/weston_diagnostics.cpp
     src/weston/weston_manager.cpp
+    src/ldde/ldde_types.cpp
+    src/ldde/ldde_config.cpp
+    src/ldde/ldde_spec.cpp
+    src/ldde/ldde_readiness.cpp
+    src/ldde/ldde_diagnostics.cpp
+    src/ldde/ldde_manager.cpp
 )
 
 add_library(lddm_core STATIC ${LDDM_CORE_SOURCES})

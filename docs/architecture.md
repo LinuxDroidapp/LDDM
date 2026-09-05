@@ -120,14 +120,21 @@
    - `WestonExecutableResolver`: Resolves and validates the Weston binary location.
    - Integration with `Session`: Attached via `session.attach_compositor()`, supervised through `session.supervisor()`, and stopped cleanly in reverse dependency order.
 
+8. **`lddm::ldde`** (Phase L4):
+   - `LddeManager`: Production desktop environment manager implementing `IDesktopEnvironmentInstance` and `ISessionComponent`.
+   - `LddeConfig`: Strongly typed desktop configuration (executable path, startup args, environment overrides, readiness mode, timeouts).
+   - `LddeSpec`: Desktop environment process specification generating command arguments and mapping to `ProcessSpec`.
+   - `LddeReadinessDetector`: Zero-dependency readiness prober supporting protocol file (`STATUS=READY\nVERSION=1\nPID=<pid>`) and UNIX domain stream sockets, with active `/proc/<pid>/stat` process liveness and zombie detection.
+   - `LddeDiagnostics`: Operational telemetry, startup and shutdown timing, transition audit logs, and crash tracking.
+   - `LddeExecutableResolver`: Automatic discovery and validation of `ldde-session` across standard and configured paths.
+   - Integration with `Session`: Attached via `session.attach_desktop_environment()`, verified via `session.is_graphical_session_ready()`, supervised through `session.supervisor()`, startup rollback on failure, and clean reverse-order teardown.
+
 ---
 
 ## 4. Future Phase Roadmap
 
-- **Phase L4 — Desktop Environment & Services**:
-  - Implement `IDesktopEnvironmentInstance` backed by `ProcessSupervisor`.
-  - Supervise LDDE desktop environment, panel, notification service, and application lifetime.
 - **Phase L5 — Production Session Management & Client Integration**:
-  - Client connections, PAM / guest authentication, seat management, multi-display support.
+  - Client connections, PAM / guest authentication, seat management, multi-display support, dynamic resolution switching, and IPC daemon endpoints.
+
 
 

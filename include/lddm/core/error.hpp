@@ -83,10 +83,23 @@ enum class ErrorCode : std::uint32_t {
     CompositorNotRunning           = 509,
 
     // Desktop errors (600-699)
-    DesktopSpawnFailed         = 600,
-    DesktopSocketError         = 601,
-    DesktopCrash               = 602,
-    DesktopTimeout             = 603,
+    DesktopSpawnFailed             = 600,
+    DesktopSocketError             = 601,
+    DesktopCrash                   = 602,
+    DesktopTimeout                 = 603,
+    LddeInitFailed                 = 604,
+    LddeSpawnFailed                = 605,
+    LddeCrash                      = 606,
+    LddeConfigError                = 607,
+    LddeExecutableNotFound         = 608,
+    LddeReadinessFailed            = 609,
+    LddeInvalidState               = 610,
+    LddeShutdownFailed             = 611,
+    LddeNotRunning                 = 612,
+    LddeTimeout                    = 613,
+    LddeProtocolError              = 614,
+    GraphicalSessionNotReady       = 615,
+    GraphicalSessionStartFailed    = 616,
 
     // Resource errors (700-799)
     ResourceExhausted          = 700,

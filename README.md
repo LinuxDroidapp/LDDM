@@ -32,9 +32,18 @@ LDDM provides a pure Linux-native session manager with zero Android API coupling
 
 ---
 
-## Features (Phases L0, L1, L2 & L3)
+## Features (Phases L0, L1, L2, L3 & L4)
 
 * **Modern C++20 Architecture**: Strict RAII, deterministic lifetimes, move semantics, and strong types.
+* **Production LDDE Session Integration (Phase L4)**:
+  * Manages the LinuxDroid Desktop Environment (LDDE) as an external supervised process attached to an LDDM Session.
+  * Dedicated 8-state finite state machine (`Created` -> `Preparing` -> `Starting` -> `WaitingReady` -> `Running` -> `Stopping` -> `Stopped` / `Failed`).
+  * Pure Linux-native readiness detection via protocol file (`STATUS=READY\nVERSION=1\nPID=<pid>`) and UNIX domain stream socket.
+  * Proactive process liveness monitoring via `/proc/<pid>/stat` to abort immediately on premature crash or zombie state.
+  * Startup rollback policy: automatic Weston termination and session failure if LDDE fails to start.
+  * Strict programmatic reverse-order shutdown: LDDE terminates cleanly before Weston compositor shuts down.
+  * Explicit graphical readiness boundary (`session.is_graphical_session_ready()`).
+  * Comprehensive desktop diagnostics, transition history audit trail, and duration metrics.
 * **Production Weston Compositor Manager (Phase L3)**:
   * Manages the Weston Wayland compositor as an external supervised process attached to an LDDM Session.
   * Dedicated 8-state compositor finite state machine (`Created` -> `Preparing` -> `Starting` -> `WaitingReady` -> `Running` -> `Stopping` -> `Stopped` / `Failed`).
@@ -63,7 +72,7 @@ LDDM provides a pure Linux-native session manager with zero Android API coupling
 * **Linux-Native Configuration**: INI-style configuration parser with default fallback, schema validation, and typed structures.
 * **Platform Abstraction Layer**: Safe RAII Linux primitives including `UniqueFd`, signal handling via self-pipe trick, high-resolution monotonic clocks, and XDG directory resolution.
 * **Session Contract**: Abstract session component interfaces (`ISessionComponent`, `ICompositorInstance`, `IDesktopEnvironmentInstance`).
-* **Zero External Dependency Test Harness**: Complete unit and integration test suite (34 targets) running seamlessly under `CTest`.
+* **Zero External Dependency Test Harness**: Complete unit and integration test suite (43 targets) running seamlessly under `CTest`.
 
 ---
 
@@ -81,6 +90,7 @@ LDDM/
 │   ├── platform/               # UniqueFd, Clock, Environment, Paths, Signals, Process primitives
 │   ├── process/                # Process, Spec, Types, Events, Diagnostics, Registry, Supervisor
 │   ├── weston/                 # WestonManager, Config, Spec, Readiness, Diagnostics, Types
+│   ├── ldde/                   # LddeManager, Config, Spec, Readiness, Diagnostics, Types
 │   └── session/                # Session, Contracts, States, Config, Diagnostics, Paths
 ├── src/                        # Implementation sources
 │   ├── main.cpp                # LDDM daemon CLI entry point
@@ -90,12 +100,13 @@ LDDM/
 │   ├── platform/
 │   ├── process/
 │   ├── weston/
+│   ├── ldde/
 │   └── session/
 ├── tests/                      # Test suite
 │   ├── CMakeLists.txt
 │   ├── test_framework.hpp      # Lightweight test framework
-│   ├── unit/                   # Unit tests (version, error, config, lifecycle, session, process, weston)
-│   └── integration/            # Full lifecycle, supervisor & weston integration tests
+│   ├── unit/                   # Unit tests (version, error, config, lifecycle, session, process, weston, ldde)
+│   └── integration/            # Lifecycle, supervisor, weston & ldde integration tests
 ├── config/                     # Configuration files
 │   ├── lddm.conf.example       # Production example config
 │   └── lddm.conf.defaults      # Built-in defaults reference
@@ -109,6 +120,7 @@ LDDM/
     ├── session.md
     ├── process.md
     ├── weston.md
+    ├── ldde.md
     └── development.md
 ```
 
@@ -131,7 +143,7 @@ cmake -B build -DCMAKE_BUILD_TYPE=Release -DLDDM_BUILD_TESTS=ON -DLDDM_WARNINGS_
 # 2. Build binaries and libraries
 cmake --build build -j$(nproc)
 
-# 3. Run test suite (26/26 tests)
+# 3. Run test suite (43/43 tests)
 ctest --test-dir build --output-on-failure
 
 # 4. Install
@@ -171,8 +183,9 @@ Run in dry-run mode:
 * [x] **Phase L0: Production Foundation** (Build, logging, config, lifecycle, error model)
 * [x] **Phase L1: Session Model** (Session identity, environment, state machine, paths, resources)
 * [x] **Phase L2: Process Supervisor** (Linux-native process lifecycle, group isolation, stream redirection, graceful termination, reaping)
-* [ ] **Phase L3: Weston Manager** (Compositor spawning, socket verification, crash detection)
-* [ ] **Phase L4: LDDE Session Integration** (Desktop environment launcher, desktop components)
-* [ ] **Phase L5: Session Recovery** (Crash recovery, compositor restart without killing apps)
+* [x] **Phase L3: Weston Manager** (Compositor spawning, socket verification, crash detection)
+* [x] **Phase L4: LDDE Session Integration** (Desktop environment launcher, desktop components, readiness protocol, rollback)
+* [ ] **Phase L5: Production Session Management & Client Integration** (Multi-display, seat management, dynamic resolution)
 * [ ] **Phase L6: Packaging & Distribution** (Debian/RPM packages, systemd daemonization)
+
 

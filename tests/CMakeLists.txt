@@ -24,6 +24,11 @@ set(UNIT_TESTS
     test_weston_spec
     test_weston_readiness
     test_weston_diagnostics
+    test_ldde_types
+    test_ldde_config
+    test_ldde_spec
+    test_ldde_readiness
+    test_ldde_diagnostics
 )
 
 set(INTEGRATION_TESTS
@@ -36,6 +41,10 @@ set(INTEGRATION_TESTS
     test_weston_manager_lifecycle
     test_weston_failure_recovery
     test_session_weston_integration
+    test_ldde_manager_lifecycle
+    test_ldde_failure_recovery
+    test_graphical_session_coordination
+    test_graphical_session_failures
 )
 
 foreach(test_name ${UNIT_TESTS})

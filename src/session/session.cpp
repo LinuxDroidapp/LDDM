@@ -35,6 +35,16 @@ SessionState Session::state() const noexcept {
     return state_machine_.state();
 }
 
+bool Session::is_graphical_session_ready() const noexcept {
+    std::lock_guard lock(mutex_);
+    if (state_machine_.state() != SessionState::RUNNING) {
+        return false;
+    }
+    bool comp_ok = compositor_ ? compositor_->is_running() : true;
+    bool desk_ok = desktop_ ? desktop_->is_running() : true;
+    return comp_ok && desk_ok;
+}
+
 SessionContext Session::context() const noexcept {
     return SessionContext{
         .identity = identity_,
