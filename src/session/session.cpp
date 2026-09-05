@@ -41,7 +41,8 @@ SessionContext Session::context() const noexcept {
         .config = config_,
         .paths = paths_,
         .environment = environment_,
-        .state = state()
+        .state = state(),
+        .supervisor = supervisor_
     };
 }
 
@@ -225,16 +226,16 @@ Result<void> Session::stop() {
 
     (void)state_machine_.transition_to(SessionState::STOPPING, "Stopping session components");
 
-    // Stop supervised child processes
-    if (supervisor_) {
-        (void)supervisor_->stop_all();
-    }
-
     // Stop components in reverse order
     for (auto it = components_.rbegin(); it != components_.rend(); ++it) {
         if (*it && (*it)->is_running()) {
             (void)(*it)->stop();
         }
+    }
+
+    // Stop any remaining supervised child processes
+    if (supervisor_) {
+        (void)supervisor_->stop_all();
     }
 
     // Clean tracked resources

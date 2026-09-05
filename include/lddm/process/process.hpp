@@ -57,5 +57,12 @@ private:
     Result<void> kill_locked(std::optional<std::chrono::milliseconds> timeout);
 };
 
+using ProcessHandle = std::string;
+
+namespace process {
+using lddm::Process;
+using lddm::ProcessHandle;
+}
+
 } // namespace lddm
 

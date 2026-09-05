@@ -97,6 +97,12 @@ set(LDDM_CORE_SOURCES
     src/session/session_diagnostics.cpp
     src/session/session.cpp
     src/session/session_manager.cpp
+    src/weston/weston_types.cpp
+    src/weston/weston_config.cpp
+    src/weston/weston_spec.cpp
+    src/weston/weston_readiness.cpp
+    src/weston/weston_diagnostics.cpp
+    src/weston/weston_manager.cpp
 )
 
 add_library(lddm_core STATIC ${LDDM_CORE_SOURCES})

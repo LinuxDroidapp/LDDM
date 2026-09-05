@@ -139,6 +139,11 @@ Result<void> ProcessSupervisor::stop_process(std::shared_ptr<Process> process, s
         .message = "Process terminated"
     });
 
+    {
+        std::lock_guard lock(mutex_);
+        emitted_exit_pids_.insert(process->pid());
+    }
+
     return res;
 }
 
@@ -162,6 +167,11 @@ Result<void> ProcessSupervisor::kill_process(ProcessId pid, std::optional<std::c
         .timestamp = SystemClock::now(),
         .message = "Process killed with SIGKILL"
     });
+
+    {
+        std::lock_guard lock(mutex_);
+        emitted_exit_pids_.insert(proc->pid());
+    }
 
     return res;
 }
@@ -207,21 +217,39 @@ std::vector<ProcessExitInfo> ProcessSupervisor::reap_exited_processes() {
     std::vector<ProcessExitInfo> reaped;
 
     for (const auto& proc : procs) {
-        if (proc && proc->is_running()) {
-            auto poll_res = proc->poll();
-            if (poll_res.has_value() && poll_res.value().has_value()) {
-                const auto& exit_info = *poll_res.value();
-                reaped.push_back(exit_info);
+        if (!proc) {
+            continue;
+        }
+        auto pid = proc->pid();
+        if (pid <= 0) {
+            continue;
+        }
 
-                emit_event(ProcessEvent{
-                    .type = exit_info.signaled ? ProcessEventType::Signaled : ProcessEventType::Exited,
-                    .pid = proc->pid(),
-                    .process_name = proc->name(),
-                    .exit_info = exit_info,
-                    .timestamp = exit_info.exit_time,
-                    .message = "Process reaped: " + exit_info.format()
-                });
+        {
+            std::lock_guard lock(mutex_);
+            if (emitted_exit_pids_.find(pid) != emitted_exit_pids_.end()) {
+                continue;
             }
+        }
+
+        auto poll_res = proc->poll();
+        if (poll_res.has_value() && poll_res.value().has_value()) {
+            const auto& exit_info = *poll_res.value();
+            reaped.push_back(exit_info);
+
+            {
+                std::lock_guard lock(mutex_);
+                emitted_exit_pids_.insert(pid);
+            }
+
+            emit_event(ProcessEvent{
+                .type = exit_info.signaled ? ProcessEventType::Signaled : ProcessEventType::Exited,
+                .pid = pid,
+                .process_name = proc->name(),
+                .exit_info = exit_info,
+                .timestamp = exit_info.exit_time,
+                .message = "Process reaped: " + exit_info.format()
+            });
         }
     }
 

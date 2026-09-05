@@ -1,5 +1,6 @@
 #include "test_framework.hpp"
 #include "lddm/process/process_supervisor.hpp"
+#include <thread>
 
 TEST_CASE(ProcessSupervisor_StartMultipleAndStopAll) {
     lddm::ProcessSupervisor supervisor;
@@ -48,8 +49,8 @@ TEST_CASE(ProcessSupervisor_ReapingExited) {
     EXPECT_TRUE(p.has_value());
 
     if (p.has_value()) {
-        // Wait for it to finish
-        (void)p.value()->wait();
+        // Wait for it to finish so reap_exited_processes can reap it
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
     }
 
     auto reaped = supervisor.reap_exited_processes();

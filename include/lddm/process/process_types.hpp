@@ -69,4 +69,12 @@ struct ProcessLaunchOptions {
     std::optional<GroupId> run_as_group;
 };
 
+namespace process {
+using lddm::ProcessState;
+using lddm::StreamPolicy;
+using lddm::ProcessExitInfo;
+using lddm::ProcessExitStatus;
+using lddm::ProcessLaunchOptions;
+}
+
 } // namespace lddm

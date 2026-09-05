@@ -1,6 +1,7 @@
 #include "test_framework.hpp"
 #include "lddm/process/process.hpp"
 #include <csignal>
+#include <thread>
 
 TEST_CASE(ProcessTermination_GracefulSIGTERM) {
     lddm::ProcessSpec spec{
@@ -41,6 +42,9 @@ TEST_CASE(ProcessTermination_EscalationToSIGKILL) {
     auto start_res = proc.start();
     EXPECT_TRUE(start_res.has_value());
     EXPECT_TRUE(proc.is_running());
+
+    // Give shell a moment to execute trap command
+    std::this_thread::sleep_for(std::chrono::milliseconds{50});
 
     // Stop will try SIGTERM, time out in 300ms, and escalate to SIGKILL
     auto stop_res = proc.stop(std::chrono::milliseconds{300});

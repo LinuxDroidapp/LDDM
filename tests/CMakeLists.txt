@@ -19,6 +19,11 @@ set(UNIT_TESTS
     test_process_registry
     test_process_diagnostics
     test_process_events
+    test_weston_types
+    test_weston_config
+    test_weston_spec
+    test_weston_readiness
+    test_weston_diagnostics
 )
 
 set(INTEGRATION_TESTS
@@ -28,6 +33,9 @@ set(INTEGRATION_TESTS
     test_process_termination
     test_process_supervisor_integration
     test_session_supervisor_integration
+    test_weston_manager_lifecycle
+    test_weston_failure_recovery
+    test_session_weston_integration
 )
 
 foreach(test_name ${UNIT_TESTS})

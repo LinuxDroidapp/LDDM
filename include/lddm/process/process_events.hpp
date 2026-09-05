@@ -42,5 +42,11 @@ struct ProcessEvent {
 
 using ProcessEventListener = std::function<void(const ProcessEvent&)>;
 
+namespace process {
+using lddm::ProcessEvent;
+using lddm::ProcessEventType;
+using lddm::ProcessEventListener;
+}
+
 } // namespace lddm
 

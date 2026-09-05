@@ -6,7 +6,11 @@
 #include "lddm/session/session_environment.hpp"
 #include "lddm/session/session_state.hpp"
 
+#include <memory>
+
 namespace lddm {
+
+class ProcessSupervisor;
 
 struct SessionContext {
     const SessionIdentity& identity;
@@ -14,6 +18,7 @@ struct SessionContext {
     const SessionPaths& paths;
     const SessionEnvironment& environment;
     SessionState state;
+    std::shared_ptr<ProcessSupervisor> supervisor{nullptr};
 };
 
 } // namespace lddm

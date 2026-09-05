@@ -38,5 +38,9 @@ private:
     std::unordered_map<std::string, std::shared_ptr<Process>> by_handle_;
 };
 
+namespace process {
+using lddm::ProcessRegistry;
+}
+
 } // namespace lddm
 

@@ -110,15 +110,24 @@
    - `ProcessEventDispatcher`: Observer event stream (`Started`, `Exited`, `Failed`, `Signaled`).
    - Integration with `Session`: Owned directly by `Session`, initialized in `session.initialize()`, environment synchronized in `session.start()`, and stopped gracefully in `session.stop()`.
 
+7. **`lddm::weston`** (Phase L3):
+   - `WestonManager`: Production compositor manager implementing `ICompositorInstance` and `ISessionComponent`.
+   - `WestonConfig`: Strongly typed compositor configuration with validation and defaults.
+   - `WestonConfigWriter`: INI configuration generator producing minimal, secure `weston.ini` files.
+   - `WestonSpec`: Compositor specification generating runtime command-line arguments and mapping to `ProcessSpec`.
+   - `WestonReadinessDetector`: Non-blocking Wayland socket readiness prober using `AF_UNIX` stream socket connections without external library dependencies.
+   - `WestonDiagnostics`: Dedicated operational metrics, transition audit logging, and error tracking.
+   - `WestonExecutableResolver`: Resolves and validates the Weston binary location.
+   - Integration with `Session`: Attached via `session.attach_compositor()`, supervised through `session.supervisor()`, and stopped cleanly in reverse dependency order.
+
 ---
 
 ## 4. Future Phase Roadmap
 
-- **Phase L3 — Weston Compositor Supervision**:
-  - Implement `ICompositorInstance` backed by `ProcessSupervisor`.
-  - Supervise Weston Wayland compositor process, arguments (`--backend`, `--socket`, `--idle-time`), socket readiness detection, and recovery.
 - **Phase L4 — Desktop Environment & Services**:
   - Implement `IDesktopEnvironmentInstance` backed by `ProcessSupervisor`.
   - Supervise LDDE desktop environment, panel, notification service, and application lifetime.
+- **Phase L5 — Production Session Management & Client Integration**:
+  - Client connections, PAM / guest authentication, seat management, multi-display support.
 
 

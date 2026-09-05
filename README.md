@@ -32,9 +32,16 @@ LDDM provides a pure Linux-native session manager with zero Android API coupling
 
 ---
 
-## Features (Phases L0, L1 & L2)
+## Features (Phases L0, L1, L2 & L3)
 
 * **Modern C++20 Architecture**: Strict RAII, deterministic lifetimes, move semantics, and strong types.
+* **Production Weston Compositor Manager (Phase L3)**:
+  * Manages the Weston Wayland compositor as an external supervised process attached to an LDDM Session.
+  * Dedicated 8-state compositor finite state machine (`Created` -> `Preparing` -> `Starting` -> `WaitingReady` -> `Running` -> `Stopping` -> `Stopped` / `Failed`).
+  * Pure POSIX `AF_UNIX` stream socket readiness detection without `libwayland-client` dependencies.
+  * Automated `weston.ini` generation and environment variable configuration (`XDG_RUNTIME_DIR`, `WAYLAND_DISPLAY`, `XDG_SESSION_TYPE`).
+  * Detailed compositor diagnostics, timestamped transition auditing, and startup duration metrics.
+  * Asynchronous process event monitoring with crash recovery and graceful `SIGTERM` -> `SIGKILL` teardown.
 * **Production Process Supervisor (Phase L2)**:
   * Pure Linux-native process supervision with deterministic `CREATED` -> `STARTING` -> `RUNNING` -> `STOPPING` -> `EXITED`/`FAILED` state machine.
   * Fork/execve isolation using an anonymous `O_CLOEXEC` pipe for deterministic child startup error detection without zombies.
@@ -55,8 +62,8 @@ LDDM provides a pure Linux-native session manager with zero Android API coupling
 * **Centralized Structured Logging**: Thread-safe multi-sink logging (`StreamSink`, `FileSink`, `MemorySink`) with severity levels (`TRACE` to `FATAL`), subsystem filtering, and ANSI terminal colorization.
 * **Linux-Native Configuration**: INI-style configuration parser with default fallback, schema validation, and typed structures.
 * **Platform Abstraction Layer**: Safe RAII Linux primitives including `UniqueFd`, signal handling via self-pipe trick, high-resolution monotonic clocks, and XDG directory resolution.
-* **Session Contract**: Abstract session component interfaces (`ISessionComponent`, `ICompositorInstance`, `IDesktopEnvironmentInstance`) ready for Weston and LDDE.
-* **Zero External Dependency Test Harness**: Complete unit and integration test suite (26 targets) running seamlessly under `CTest`.
+* **Session Contract**: Abstract session component interfaces (`ISessionComponent`, `ICompositorInstance`, `IDesktopEnvironmentInstance`).
+* **Zero External Dependency Test Harness**: Complete unit and integration test suite (34 targets) running seamlessly under `CTest`.
 
 ---
 
@@ -73,6 +80,7 @@ LDDM/
 │   ├── config/                 # Config types, Parser, Validator, Manager
 │   ├── platform/               # UniqueFd, Clock, Environment, Paths, Signals, Process primitives
 │   ├── process/                # Process, Spec, Types, Events, Diagnostics, Registry, Supervisor
+│   ├── weston/                 # WestonManager, Config, Spec, Readiness, Diagnostics, Types
 │   └── session/                # Session, Contracts, States, Config, Diagnostics, Paths
 ├── src/                        # Implementation sources
 │   ├── main.cpp                # LDDM daemon CLI entry point
@@ -81,12 +89,13 @@ LDDM/
 │   ├── config/
 │   ├── platform/
 │   ├── process/
+│   ├── weston/
 │   └── session/
 ├── tests/                      # Test suite
 │   ├── CMakeLists.txt
 │   ├── test_framework.hpp      # Lightweight test framework
-│   ├── unit/                   # Unit tests (version, error, config, lifecycle, session, process, etc.)
-│   └── integration/            # Full lifecycle & supervisor integration tests
+│   ├── unit/                   # Unit tests (version, error, config, lifecycle, session, process, weston)
+│   └── integration/            # Full lifecycle, supervisor & weston integration tests
 ├── config/                     # Configuration files
 │   ├── lddm.conf.example       # Production example config
 │   └── lddm.conf.defaults      # Built-in defaults reference
@@ -99,6 +108,7 @@ LDDM/
     ├── logging.md
     ├── session.md
     ├── process.md
+    ├── weston.md
     └── development.md
 ```
 

@@ -32,5 +32,8 @@ struct ProcessSpec {
     [[nodiscard]] Result<void> validate() const noexcept;
 };
 
-} // namespace lddm
+namespace process {
+using lddm::ProcessSpec;
+}
 
+} // namespace lddm

@@ -71,10 +71,16 @@ enum class ErrorCode : std::uint32_t {
     PlatformPermissionDenied   = 405,
 
     // Compositor errors (500-599)
-    CompositorSpawnFailed      = 500,
-    CompositorSocketError      = 501,
-    CompositorCrash            = 502,
-    CompositorTimeout          = 503,
+    CompositorSpawnFailed          = 500,
+    CompositorSocketError          = 501,
+    CompositorCrash                = 502,
+    CompositorTimeout              = 503,
+    CompositorConfigError          = 504,
+    CompositorExecutableNotFound   = 505,
+    CompositorReadinessFailed      = 506,
+    CompositorInvalidState         = 507,
+    CompositorShutdownFailed       = 508,
+    CompositorNotRunning           = 509,
 
     // Desktop errors (600-699)
     DesktopSpawnFailed         = 600,

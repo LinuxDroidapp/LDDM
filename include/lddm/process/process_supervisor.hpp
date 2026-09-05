@@ -9,6 +9,7 @@
 #include <memory>
 #include <mutex>
 #include <chrono>
+#include <unordered_set>
 
 namespace lddm {
 
@@ -61,10 +62,15 @@ private:
     ProcessRegistry registry_;
     std::vector<ProcessEventListener> listeners_;
     std::vector<std::string> base_environment_;
+    std::unordered_set<ProcessId> emitted_exit_pids_;
     bool shutting_down_{false};
 
     void emit_event(const ProcessEvent& event);
 };
+
+namespace process {
+using lddm::ProcessSupervisor;
+}
 
 } // namespace lddm
 
