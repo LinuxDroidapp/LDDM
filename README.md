@@ -1,1 +1,1 @@
-# ldde
+# Linux Droid Desktop Environment 
