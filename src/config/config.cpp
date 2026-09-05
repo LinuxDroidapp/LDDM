@@ -43,10 +43,16 @@ Result<void> ConfigManager::load_standard(const std::optional<std::string>& over
         return load_file(user_cfg);
     }
 
-    std::string sys_cfg = default_system_config_path();
-    if (!sys_cfg.empty() && std::filesystem::exists(sys_cfg)) {
-        LDDM_LOG_INFO(LogSubsystem::CONFIG, "Loading system configuration: {}", sys_cfg);
-        return load_file(sys_cfg);
+    std::string sys_primary = "/etc/linuxdroid/lddm.conf";
+    if (std::filesystem::exists(sys_primary)) {
+        LDDM_LOG_INFO(LogSubsystem::CONFIG, "Loading system configuration: {}", sys_primary);
+        return load_file(sys_primary);
+    }
+
+    std::string sys_fallback = "/etc/lddm/lddm.conf";
+    if (std::filesystem::exists(sys_fallback)) {
+        LDDM_LOG_INFO(LogSubsystem::CONFIG, "Loading legacy system configuration: {}", sys_fallback);
+        return load_file(sys_fallback);
     }
 
     LDDM_LOG_INFO(LogSubsystem::CONFIG, "No configuration file found; using built-in defaults");
@@ -54,7 +60,15 @@ Result<void> ConfigManager::load_standard(const std::optional<std::string>& over
 }
 
 std::string ConfigManager::default_system_config_path() {
-    return "/etc/lddm/lddm.conf";
+    std::string primary_path = "/etc/linuxdroid/lddm.conf";
+    if (std::filesystem::exists(primary_path)) {
+        return primary_path;
+    }
+    std::string fallback_path = "/etc/lddm/lddm.conf";
+    if (std::filesystem::exists(fallback_path)) {
+        return fallback_path;
+    }
+    return primary_path;
 }
 
 std::string ConfigManager::default_user_config_path() {

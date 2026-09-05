@@ -84,7 +84,8 @@
 
 3. **`lddm::config`**:
    - Centralized INI configuration parser supporting sections, types, validation, and defaults.
-   - System path: `/etc/lddm/lddm.conf`, user path: `~/.config/lddm/lddm.conf`.
+   - System path: `/etc/linuxdroid/lddm.conf` (with `/etc/lddm/lddm.conf` fallback symlink), user path: `~/.config/lddm/lddm.conf`.
+   - `ConfigMigrator`: Schema-versioned configuration upgrade engine (v0 -> v1) with in-place, out-of-place, and atomic update capabilities.
 
 4. **`lddm::platform`**:
    - RAII wrappers: `UniqueFd`.
@@ -139,12 +140,26 @@
    - Stale Resource Cleanup: Non-blocking Wayland display socket probing (`SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC`) to eliminate dead sockets without blocking.
    - Integration with `Session`: Attached via `session.attach_recovery()`, hooks into `ProcessSupervisor` exit events, transitions session to `RECOVERING`, and restores to `RUNNING` or `FAILED`.
 
+10. **`packaging`** (Phase L6):
+    - Authoritative Debian package: `linuxdroid-display-manager` for `arm64` and `amd64`.
+    - Filesystem layout: `/usr/bin/lddm`, `/usr/bin/linuxdroid-display-manager` symlink, `/etc/linuxdroid/lddm.conf` conffile, `/etc/lddm/lddm.conf` fallback symlink.
+    - Migration & upgrade safety: Automatic schema migration preserving user-edited configuration parameters.
+    - Idempotent maintainer scripts: `postinst`, `prerm`, and `postrm` handling install, upgrade, remove, and purge lifecycles.
+    - Init system independence: Designed for direct invocation by LinuxDroid Guest Init without requiring systemd as PID 1.
+    - Clear ownership boundary: Distinguishes package-installed static files from dynamic runtime assets (`/run/lddm`, `/run/user/<uid>`).
+
 ---
 
-## 4. Future Phase Roadmap
+## 4. Phase Completion Status
 
-- **Phase L6 — Packaging, Distribution & Service Integration**:
-  - Systemd / SysVinit service units, packaging scripts, integration test suites in Android/PRoot environments, IPC client bindings, and release distribution.
+- [x] **Phase L0 — Production Foundation**: Build system, versioning, error taxonomy, logging, lifecycle primitives.
+- [x] **Phase L1 — Production Session Model**: Identity, environment, paths, state machine, resource tracker, multi-session manager.
+- [x] **Phase L2 — Production Process Supervisor**: Supervised processes, process groups, streams, graceful termination, reaping.
+- [x] **Phase L3 — Production Weston Manager**: Compositor process orchestration, Wayland socket readiness detection, crash handling.
+- [x] **Phase L4 — Production LDDE Session Integration**: Desktop environment orchestration, file/socket readiness, startup rollback.
+- [x] **Phase L5 — Production Session Recovery**: Resilient fault recovery, exponential backoff, dependency ordering, stale socket cleanup.
+- [x] **Phase L6 — Production Packaging**: Debian package generation, conffile protection, schema migration, filesystem layout, rootfs integration.
+
 
 
 

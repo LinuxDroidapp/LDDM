@@ -32,9 +32,16 @@ LDDM provides a pure Linux-native session manager with zero Android API coupling
 
 ---
 
-## Features (Phases L0 through L5)
+## Features (Phases L0 through L6)
 
 * **Modern C++20 Architecture**: Strict RAII, deterministic lifetimes, move semantics, and strong types.
+* **Production Packaging & Rootfs Integration (Phase L6)**:
+  * Authoritative Debian packaging (`linuxdroid-display-manager`) for `arm64` and `amd64`.
+  * Standard Linux FHS filesystem layout (`/usr/bin/lddm`, `/usr/bin/linuxdroid-display-manager` symlink, `/etc/linuxdroid/lddm.conf` conffile, `/etc/lddm/lddm.conf` fallback symlink, `/usr/share/doc/linuxdroid-display-manager/`).
+  * Configuration schema migration engine (`ConfigMigrator`) supporting schema version detection (v0 -> v1) while preserving user-defined configurations and comments.
+  * Idempotent maintainer scripts (`postinst`, `prerm`, `postrm`) respecting remove vs purge lifecycle semantics.
+  * Explicit ownership boundary between package-installed files and runtime-owned directories (`/run/lddm`, `/run/user/<uid>`).
+  * Init-system independent: zero hard systemd PID 1 requirements, enabling direct invocation by LinuxDroid Guest Init.
 * **Production Session Recovery (Phase L5)**:
   * Resilient recovery manager (`RecoveryManager`) handling compositor crashes, desktop environment failures, and readiness timeouts.
   * Dedicated 5-state recovery finite state machine (`Idle` -> `Recovering` -> `Verifying` -> `Recovered` / `Failed`).
@@ -154,11 +161,14 @@ cmake -B build -DCMAKE_BUILD_TYPE=Release -DLDDM_BUILD_TESTS=ON -DLDDM_WARNINGS_
 # 2. Build binaries and libraries
 cmake --build build -j$(nproc)
 
-# 3. Run test suite (52/52 tests)
+# 3. Run test suite (56/56 tests)
 ctest --test-dir build --output-on-failure
 
-# 4. Install
+# 4. Install locally
 sudo cmake --install build
+
+# 5. Build Debian package (.deb)
+cmake --build build --target package_deb
 ```
 
 ---
@@ -173,6 +183,7 @@ Options:
   -v, --version               Display version information and exit
   -c, --config <file>         Specify path to configuration file
       --validate-config <file> Validate configuration file and exit
+      --migrate-config <in> [out] Migrate legacy configuration file to latest schema
       --log-level <level>      Set logging level (TRACE, DEBUG, INFO, WARN, ERROR, FATAL)
       --dry-run               Initialize and validate environment then exit
 ```
@@ -180,6 +191,11 @@ Options:
 Validate a configuration file:
 ```bash
 ./build/lddm --validate-config config/lddm.conf.example
+```
+
+Migrate a configuration file:
+```bash
+./build/lddm --migrate-config /etc/lddm/lddm.conf /etc/linuxdroid/lddm.conf
 ```
 
 Run in dry-run mode:
@@ -197,7 +213,8 @@ Run in dry-run mode:
 * [x] **Phase L3: Weston Manager** (Compositor spawning, socket verification, crash detection)
 * [x] **Phase L4: LDDE Session Integration** (Desktop environment launcher, desktop components, readiness protocol, rollback)
 * [x] **Phase L5: Production Session Recovery** (Failure classification, dependency ordering, exponential backoff, socket cleanup, stability)
-* [ ] **Phase L6: Packaging & Distribution** (Debian/RPM packages, systemd daemonization, container integration)
+* [x] **Phase L6: Production Packaging** (Debian packaging, conffile protection, schema migration, filesystem layout, rootfs integration)
+
 
 
 

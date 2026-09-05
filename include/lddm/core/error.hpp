@@ -34,6 +34,8 @@ enum class ErrorCode : std::uint32_t {
     ConfigValidationFailed     = 103,
     ConfigMissingRequiredKey   = 104,
     ConfigInvalidValue         = 105,
+    ConfigMigrationFailed      = 106,
+    ConfigSchemaInvalid        = 107,
 
     // Session errors (200-299)
     SessionAlreadyActive           = 200,

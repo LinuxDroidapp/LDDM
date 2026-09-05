@@ -2,6 +2,7 @@
 #include "lddm/core/lifecycle.hpp"
 #include "lddm/core/error.hpp"
 #include "lddm/config/config.hpp"
+#include "lddm/config/config_migrator.hpp"
 #include "lddm/logging/logger.hpp"
 #include "lddm/platform/signal_handler.hpp"
 #include "lddm/session/session.hpp"
@@ -29,6 +30,7 @@ void print_help(const char* program_name) {
               << "  -v, --version               Display version information and exit\n"
               << "  -c, --config <file>         Specify path to configuration file\n"
               << "      --validate-config <file> Validate configuration file and exit\n"
+              << "      --migrate-config <in> [out] Migrate configuration file to latest schema and exit\n"
               << "      --log-level <level>      Set logging level (TRACE, DEBUG, INFO, WARN, ERROR, FATAL)\n"
               << "      --dry-run               Initialize and validate environment then exit\n";
 }
@@ -38,6 +40,8 @@ void print_help(const char* program_name) {
 int main(int argc, char* argv[]) {
     std::string config_path;
     std::string validate_config_path;
+    std::string migrate_in_path;
+    std::string migrate_out_path;
     std::string log_level_str;
     bool dry_run = false;
 
@@ -64,6 +68,16 @@ int main(int argc, char* argv[]) {
                 validate_config_path = std::string(args[++i]);
             } else {
                 std::cerr << "Error: --validate-config requires a file path\n";
+                return 1;
+            }
+        } else if (args[i] == "--migrate-config") {
+            if (i + 1 < args.size()) {
+                migrate_in_path = std::string(args[++i]);
+                if (i + 1 < args.size() && !args[i + 1].starts_with("-")) {
+                    migrate_out_path = std::string(args[++i]);
+                }
+            } else {
+                std::cerr << "Error: --migrate-config requires an input file path\n";
                 return 1;
             }
         } else if (args[i] == "--log-level") {
@@ -96,6 +110,17 @@ int main(int argc, char* argv[]) {
             return 1;
         }
         std::cout << "Configuration file " << validate_config_path << " is valid.\n";
+        return 0;
+    }
+
+    // Config migration mode
+    if (!migrate_in_path.empty()) {
+        auto mig_res = lddm::ConfigMigrator::migrate_file(migrate_in_path, migrate_out_path);
+        if (!mig_res.has_value()) {
+            std::cerr << "Configuration migration error: " << mig_res.error().message() << "\n";
+            return 1;
+        }
+        std::cout << "Configuration migrated successfully.\n";
         return 0;
     }
 

@@ -74,6 +74,7 @@ set(LDDM_CORE_SOURCES
     src/config/config_types.cpp
     src/config/config_parser.cpp
     src/config/config_validator.cpp
+    src/config/config_migrator.cpp
     src/config/config.cpp
     src/platform/unique_fd.cpp
     src/platform/clock.cpp
@@ -149,6 +150,14 @@ install(TARGETS lddm lddm_core
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
 )
 
+# Symlink: linuxdroid-display-manager -> lddm
+install(CODE "
+    file(MAKE_DIRECTORY \"\$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}\")
+    execute_process(
+        COMMAND \${CMAKE_COMMAND} -E create_symlink lddm \"\$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}/linuxdroid-display-manager\"
+    )
+")
+
 install(DIRECTORY include/
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
     FILES_MATCHING PATTERN "*.hpp"
@@ -158,9 +167,31 @@ install(FILES "${CMAKE_CURRENT_BINARY_DIR}/include/lddm/version.hpp"
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/lddm
 )
 
-install(DIRECTORY config/
-    DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/lddm
-    FILES_MATCHING PATTERN "*.conf*"
+# Configuration: install to /etc/linuxdroid/
+install(FILES config/lddm.conf.example
+    DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/linuxdroid
+    RENAME lddm.conf
+)
+
+install(FILES config/lddm.conf.defaults
+    DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/linuxdroid
+)
+
+# Fallback symlink: /etc/lddm/lddm.conf -> /etc/linuxdroid/lddm.conf
+install(CODE "
+    file(MAKE_DIRECTORY \"\$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_SYSCONFDIR}/lddm\")
+    execute_process(
+        COMMAND \${CMAKE_COMMAND} -E create_symlink ../linuxdroid/lddm.conf \"\$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_SYSCONFDIR}/lddm/lddm.conf\"
+    )
+")
+
+# Documentation
+install(FILES README.md
+    DESTINATION ${CMAKE_INSTALL_DATADIR}/doc/linuxdroid-display-manager
+)
+install(DIRECTORY docs/
+    DESTINATION ${CMAKE_INSTALL_DATADIR}/doc/linuxdroid-display-manager
+    FILES_MATCHING PATTERN "*.md"
 )
 
 # CMake export configuration
@@ -178,6 +209,35 @@ write_basic_package_version_file(
 
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/lddmConfigVersion.cmake"
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/lddm
+)
+
+# CPack Debian Packaging Configuration
+set(CPACK_PACKAGE_NAME "linuxdroid-display-manager")
+set(CPACK_PACKAGE_VENDOR "LinuxDroid Project")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "LinuxDroid Display Manager (LDDM)")
+set(CPACK_PACKAGE_VERSION_MAJOR "${PROJECT_VERSION_MAJOR}")
+set(CPACK_PACKAGE_VERSION_MINOR "${PROJECT_VERSION_MINOR}")
+set(CPACK_PACKAGE_VERSION_PATCH "${PROJECT_VERSION_PATCH}")
+set(CPACK_PACKAGE_VERSION "${PROJECT_VERSION}")
+set(CPACK_GENERATOR "DEB")
+set(CPACK_DEBIAN_PACKAGE_NAME "linuxdroid-display-manager")
+set(CPACK_DEBIAN_PACKAGE_MAINTAINER "LinuxDroid Team <dev@linuxdroid.org>")
+set(CPACK_DEBIAN_PACKAGE_SECTION "x11")
+set(CPACK_DEBIAN_PACKAGE_PRIORITY "optional")
+set(CPACK_DEBIAN_PACKAGE_HOMEPAGE "https://github.com/LinuxDroidapp/LDDM")
+set(CPACK_DEBIAN_PACKAGE_DEPENDS "libc6 (>= 2.34), libstdc++6 (>= 13)")
+set(CPACK_DEBIAN_PACKAGE_RECOMMENDS "weston (>= 10.0)")
+set(CPACK_DEBIAN_PACKAGE_SUGGESTS "linuxdroid-desktop-environment | ldde")
+set(CPACK_DEBIAN_PACKAGE_CONTROL_EXTRA
+    "${CMAKE_CURRENT_SOURCE_DIR}/packaging/debian/postinst;${CMAKE_CURRENT_SOURCE_DIR}/packaging/debian/prerm;${CMAKE_CURRENT_SOURCE_DIR}/packaging/debian/postrm;${CMAKE_CURRENT_SOURCE_DIR}/packaging/debian/conffiles"
+)
+include(CPack)
+
+# Custom target: package_deb
+add_custom_target(package_deb
+    COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/packaging/build_package.sh --build-dir ${CMAKE_CURRENT_BINARY_DIR}
+    DEPENDS lddm lddm_core
+    COMMENT "Building production Debian package"
 )
 
 # Tests

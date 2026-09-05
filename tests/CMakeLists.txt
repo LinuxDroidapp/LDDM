@@ -33,6 +33,8 @@ set(UNIT_TESTS
     test_recovery_config
     test_recovery_diagnostics
     test_recovery_preconditions
+    test_config_migration
+    test_package_paths
 )
 
 set(INTEGRATION_TESTS
@@ -54,6 +56,8 @@ set(INTEGRATION_TESTS
     test_recovery_session_restart
     test_recovery_exhaustion
     test_recovery_stability
+    test_package_deb
+    test_package_upgrade_lifecycle
 )
 
 foreach(test_name ${UNIT_TESTS})

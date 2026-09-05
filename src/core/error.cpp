@@ -28,6 +28,8 @@ std::string_view to_string(ErrorCode code) noexcept {
         case ErrorCode::ConfigValidationFailed:    return "ConfigValidationFailed";
         case ErrorCode::ConfigMissingRequiredKey:  return "ConfigMissingRequiredKey";
         case ErrorCode::ConfigInvalidValue:        return "ConfigInvalidValue";
+        case ErrorCode::ConfigMigrationFailed:     return "ConfigMigrationFailed";
+        case ErrorCode::ConfigSchemaInvalid:       return "ConfigSchemaInvalid";
         case ErrorCode::SessionAlreadyActive:          return "SessionAlreadyActive";
         case ErrorCode::SessionNotFound:               return "SessionNotFound";
         case ErrorCode::SessionInvalidState:           return "SessionInvalidState";
