@@ -32,9 +32,17 @@ LDDM provides a pure Linux-native session manager with zero Android API coupling
 
 ---
 
-## Features (Phases L0, L1, L2, L3 & L4)
+## Features (Phases L0 through L5)
 
 * **Modern C++20 Architecture**: Strict RAII, deterministic lifetimes, move semantics, and strong types.
+* **Production Session Recovery (Phase L5)**:
+  * Resilient recovery manager (`RecoveryManager`) handling compositor crashes, desktop environment failures, and readiness timeouts.
+  * Dedicated 5-state recovery finite state machine (`Idle` -> `Recovering` -> `Verifying` -> `Recovered` / `Failed`).
+  * Strongly typed recovery policies (`NoRecovery`, `ComponentRestart`, `SessionRestart`, `FailSession`) and failure classification (`RecoveryReason`).
+  * Wayland dependency ordering: Weston compositor crash enforces client LDDE teardown before Weston relaunch, preventing dangling Wayland client sockets.
+  * Robust loop prevention with sliding time windows (`window_ms`), bounded attempt budgets (`max_attempts`), and exponential backoff calculations.
+  * Stale runtime resource cleanup using non-blocking POSIX socket probing (`SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC`) to eliminate dead sockets without blocking.
+  * Comprehensive recovery diagnostics, timestamped transition auditing, consecutive failure counts, and bounded history logs.
 * **Production LDDE Session Integration (Phase L4)**:
   * Manages the LinuxDroid Desktop Environment (LDDE) as an external supervised process attached to an LDDM Session.
   * Dedicated 8-state finite state machine (`Created` -> `Preparing` -> `Starting` -> `WaitingReady` -> `Running` -> `Stopping` -> `Stopped` / `Failed`).
@@ -67,12 +75,12 @@ LDDM provides a pure Linux-native session manager with zero Android API coupling
   * Deterministic multi-layer session environment generation (`SessionEnvironment`) with redacted diagnostics.
   * Centralized `SessionManager` managing multi-session registries, active session selection, and graceful teardown.
   * Robust resource tracking (`SessionResourceTracker`) ensuring zero leaked file descriptors or temporary files.
-* **Unified Error Model**: Categorized errors (`Configuration`, `Session`, `Process`, `Platform`, `Compositor`, `Desktop`, `Resource`, `Internal`) with stable codes, source location tracking, and type-safe `Result<T>` propagation.
+* **Unified Error Model**: Categorized errors (`Configuration`, `Session`, `Process`, `Platform`, `Compositor`, `Desktop`, `Resource`, `Recovery`, `Internal`) with stable codes, source location tracking, and type-safe `Result<T>` propagation.
 * **Centralized Structured Logging**: Thread-safe multi-sink logging (`StreamSink`, `FileSink`, `MemorySink`) with severity levels (`TRACE` to `FATAL`), subsystem filtering, and ANSI terminal colorization.
 * **Linux-Native Configuration**: INI-style configuration parser with default fallback, schema validation, and typed structures.
 * **Platform Abstraction Layer**: Safe RAII Linux primitives including `UniqueFd`, signal handling via self-pipe trick, high-resolution monotonic clocks, and XDG directory resolution.
 * **Session Contract**: Abstract session component interfaces (`ISessionComponent`, `ICompositorInstance`, `IDesktopEnvironmentInstance`).
-* **Zero External Dependency Test Harness**: Complete unit and integration test suite (43 targets) running seamlessly under `CTest`.
+* **Zero External Dependency Test Harness**: Complete unit and integration test suite (52 targets) running seamlessly under `CTest`.
 
 ---
 
@@ -91,6 +99,7 @@ LDDM/
 │   ├── process/                # Process, Spec, Types, Events, Diagnostics, Registry, Supervisor
 │   ├── weston/                 # WestonManager, Config, Spec, Readiness, Diagnostics, Types
 │   ├── ldde/                   # LddeManager, Config, Spec, Readiness, Diagnostics, Types
+│   ├── recovery/               # RecoveryManager, Config, Diagnostics, Types
 │   └── session/                # Session, Contracts, States, Config, Diagnostics, Paths
 ├── src/                        # Implementation sources
 │   ├── main.cpp                # LDDM daemon CLI entry point
@@ -101,12 +110,13 @@ LDDM/
 │   ├── process/
 │   ├── weston/
 │   ├── ldde/
+│   ├── recovery/
 │   └── session/
 ├── tests/                      # Test suite
 │   ├── CMakeLists.txt
 │   ├── test_framework.hpp      # Lightweight test framework
-│   ├── unit/                   # Unit tests (version, error, config, lifecycle, session, process, weston, ldde)
-│   └── integration/            # Lifecycle, supervisor, weston & ldde integration tests
+│   ├── unit/                   # Unit tests (version, error, config, lifecycle, session, process, weston, ldde, recovery)
+│   └── integration/            # Lifecycle, supervisor, weston, ldde, and recovery integration tests
 ├── config/                     # Configuration files
 │   ├── lddm.conf.example       # Production example config
 │   └── lddm.conf.defaults      # Built-in defaults reference
@@ -121,6 +131,7 @@ LDDM/
     ├── process.md
     ├── weston.md
     ├── ldde.md
+    ├── recovery.md
     └── development.md
 ```
 
@@ -143,7 +154,7 @@ cmake -B build -DCMAKE_BUILD_TYPE=Release -DLDDM_BUILD_TESTS=ON -DLDDM_WARNINGS_
 # 2. Build binaries and libraries
 cmake --build build -j$(nproc)
 
-# 3. Run test suite (43/43 tests)
+# 3. Run test suite (52/52 tests)
 ctest --test-dir build --output-on-failure
 
 # 4. Install
@@ -185,7 +196,8 @@ Run in dry-run mode:
 * [x] **Phase L2: Process Supervisor** (Linux-native process lifecycle, group isolation, stream redirection, graceful termination, reaping)
 * [x] **Phase L3: Weston Manager** (Compositor spawning, socket verification, crash detection)
 * [x] **Phase L4: LDDE Session Integration** (Desktop environment launcher, desktop components, readiness protocol, rollback)
-* [ ] **Phase L5: Production Session Management & Client Integration** (Multi-display, seat management, dynamic resolution)
-* [ ] **Phase L6: Packaging & Distribution** (Debian/RPM packages, systemd daemonization)
+* [x] **Phase L5: Production Session Recovery** (Failure classification, dependency ordering, exponential backoff, socket cleanup, stability)
+* [ ] **Phase L6: Packaging & Distribution** (Debian/RPM packages, systemd daemonization, container integration)
+
 
 

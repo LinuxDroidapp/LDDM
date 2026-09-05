@@ -1,4 +1,5 @@
 #include "lddm/session/session.hpp"
+#include "lddm/recovery/recovery_manager.hpp"
 #include "lddm/logging/logger.hpp"
 
 namespace lddm {
@@ -87,6 +88,15 @@ void Session::attach_desktop(std::shared_ptr<IDesktopEnvironmentInstance> deskto
         LDDM_LOG_INFO(LogSubsystem::SESSION, "[Session '{}'] Attached desktop environment '{}'",
                       identity_.id.str(), desktop_->name());
         components_.push_back(desktop_);
+    }
+}
+
+void Session::attach_recovery(std::shared_ptr<recovery::RecoveryManager> recovery) {
+    std::lock_guard lock(mutex_);
+    recovery_ = recovery;
+    if (recovery_) {
+        LDDM_LOG_INFO(LogSubsystem::SESSION, "[Session '{}'] Attached recovery manager",
+                      identity_.id.str());
     }
 }
 
@@ -226,7 +236,9 @@ Result<void> Session::stop() {
     if (current != SessionState::STARTING &&
         current != SessionState::RUNNING &&
         current != SessionState::READY &&
-        current != SessionState::INITIALIZING) {
+        current != SessionState::INITIALIZING &&
+        current != SessionState::RECOVERING &&
+        current != SessionState::FAILED) {
         return Result<void>::failure(Error(
             ErrorCategory::Session,
             ErrorCode::SessionInvalidState,
@@ -234,7 +246,9 @@ Result<void> Session::stop() {
             "session_id=" + identity_.id.str()));
     }
 
-    (void)state_machine_.transition_to(SessionState::STOPPING, "Stopping session components");
+    if (current != SessionState::FAILED) {
+        (void)state_machine_.transition_to(SessionState::STOPPING, "Stopping session components");
+    }
 
     // Stop components in reverse order
     for (auto it = components_.rbegin(); it != components_.rend(); ++it) {
@@ -297,7 +311,8 @@ Result<void> Session::cleanup() noexcept {
     if (current == SessionState::RUNNING ||
         current == SessionState::STARTING ||
         current == SessionState::READY ||
-        current == SessionState::INITIALIZING) {
+        current == SessionState::INITIALIZING ||
+        current == SessionState::RECOVERING) {
         (void)stop();
     }
 

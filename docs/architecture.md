@@ -127,14 +127,24 @@
    - `LddeReadinessDetector`: Zero-dependency readiness prober supporting protocol file (`STATUS=READY\nVERSION=1\nPID=<pid>`) and UNIX domain stream sockets, with active `/proc/<pid>/stat` process liveness and zombie detection.
    - `LddeDiagnostics`: Operational telemetry, startup and shutdown timing, transition audit logs, and crash tracking.
    - `LddeExecutableResolver`: Automatic discovery and validation of `ldde-session` across standard and configured paths.
-   - Integration with `Session`: Attached via `session.attach_desktop_environment()`, verified via `session.is_graphical_session_ready()`, supervised through `session.supervisor()`, startup rollback on failure, and clean reverse-order teardown.
+   - Integration with `Session`: Attached via `session.attach_desktop()`, verified via `session.is_graphical_session_ready()`, supervised through `session.supervisor()`, startup rollback on failure, and clean reverse-order teardown.
+
+9. **`lddm::recovery`** (Phase L5):
+   - `RecoveryManager`: Production fault recovery orchestrator managing policies, exponential backoff, retry windows, and failure loop prevention.
+   - `RecoveryState`: Dedicated 5-state lifecycle (`Idle`, `Recovering`, `Verifying`, `Recovered`, `Failed`).
+   - `RecoveryReason` & `RecoveryPolicy`: Strongly typed failure classification and policy mapping (`NoRecovery`, `ComponentRestart`, `SessionRestart`, `FailSession`).
+   - `RecoveryConfig`: Bounded retry parameters, backoff timing calculator, and precondition enforcement.
+   - `RecoveryDiagnostics`: Real-time telemetry, consecutive failure metrics, and bounded audit logs.
+   - Dependency Ordering: Compositor crash triggers LDDE client teardown prior to Weston re-launch and re-verification, followed by clean LDDE re-launch.
+   - Stale Resource Cleanup: Non-blocking Wayland display socket probing (`SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC`) to eliminate dead sockets without blocking.
+   - Integration with `Session`: Attached via `session.attach_recovery()`, hooks into `ProcessSupervisor` exit events, transitions session to `RECOVERING`, and restores to `RUNNING` or `FAILED`.
 
 ---
 
 ## 4. Future Phase Roadmap
 
-- **Phase L5 — Production Session Management & Client Integration**:
-  - Client connections, PAM / guest authentication, seat management, multi-display support, dynamic resolution switching, and IPC daemon endpoints.
+- **Phase L6 — Packaging, Distribution & Service Integration**:
+  - Systemd / SysVinit service units, packaging scripts, integration test suites in Android/PRoot environments, IPC client bindings, and release distribution.
 
 
 

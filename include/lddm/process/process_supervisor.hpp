@@ -40,6 +40,8 @@ public:
     Result<void> stop_all(std::optional<std::chrono::milliseconds> stop_timeout = std::nullopt,
                           std::optional<std::chrono::milliseconds> kill_timeout = std::nullopt);
 
+    void reset() noexcept;
+
     std::vector<ProcessExitInfo> reap_exited_processes();
 
     void set_base_environment(std::vector<std::string> env);

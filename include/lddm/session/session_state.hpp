@@ -20,7 +20,8 @@ enum class SessionState : std::uint8_t {
     RUNNING      = 4,
     STOPPING     = 5,
     STOPPED      = 6,
-    FAILED       = 7
+    FAILED       = 7,
+    RECOVERING   = 8
 };
 
 // Backwards compatibility alias

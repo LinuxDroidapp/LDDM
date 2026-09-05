@@ -55,10 +55,12 @@ public:
     // Direct supervisor dependency injection (if not initialized via SessionContext)
     void set_supervisor(std::shared_ptr<lddm::process::ProcessSupervisor> supervisor);
 
+    void reset();
+    void cleanup_resources() noexcept;
+
 private:
     Result<void> transition_to(WestonState target, std::string reason = "");
     void on_process_event(const lddm::process::ProcessEvent& event);
-    void cleanup_resources() noexcept;
 
     mutable std::recursive_mutex mutex_;
     std::string name_{"weston"};

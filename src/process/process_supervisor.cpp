@@ -212,6 +212,13 @@ Result<void> ProcessSupervisor::stop_all(std::optional<std::chrono::milliseconds
     return Result<void>::success();
 }
 
+void ProcessSupervisor::reset() noexcept {
+    std::lock_guard lock(mutex_);
+    shutting_down_ = false;
+    registry_.clear();
+    emitted_exit_pids_.clear();
+}
+
 std::vector<ProcessExitInfo> ProcessSupervisor::reap_exited_processes() {
     auto procs = registry_.all_processes();
     std::vector<ProcessExitInfo> reaped;

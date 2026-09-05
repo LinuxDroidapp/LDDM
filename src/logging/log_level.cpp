@@ -36,6 +36,7 @@ std::string_view to_string(LogSubsystem subsystem) noexcept {
         case LogSubsystem::PLATFORM: return "PLATFORM";
         case LogSubsystem::WESTON:   return "WESTON";
         case LogSubsystem::LDDE:     return "LDDE";
+        case LogSubsystem::RECOVERY: return "RECOVERY";
     }
     return "UNKNOWN";
 }
@@ -48,6 +49,7 @@ std::optional<LogSubsystem> parse_log_subsystem(std::string_view str) noexcept {
     if (str == "PLATFORM" || str == "platform") return LogSubsystem::PLATFORM;
     if (str == "WESTON"   || str == "weston")   return LogSubsystem::WESTON;
     if (str == "LDDE"     || str == "ldde")     return LogSubsystem::LDDE;
+    if (str == "RECOVERY" || str == "recovery") return LogSubsystem::RECOVERY;
     return std::nullopt;
 }
 

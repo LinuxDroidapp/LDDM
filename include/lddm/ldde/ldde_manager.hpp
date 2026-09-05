@@ -47,6 +47,7 @@ public:
     void set_supervisor(std::shared_ptr<ProcessSupervisor> supervisor);
     void on_process_event(const process::ProcessEvent& event);
     void cleanup_resources() noexcept;
+    void reset();
 
 private:
     mutable std::recursive_mutex mutex_;

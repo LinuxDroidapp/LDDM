@@ -17,7 +17,8 @@ enum class ErrorCategory : std::uint32_t {
     Compositor    = 5,
     Desktop       = 6,
     Resource      = 7,
-    Internal      = 8
+    Internal      = 8,
+    Recovery      = 9
 };
 
 [[nodiscard]] std::string_view to_string(ErrorCategory category) noexcept;
@@ -111,7 +112,19 @@ enum class ErrorCode : std::uint32_t {
     InternalLogicError         = 800,
     InternalNotImplemented     = 801,
     InternalInvalidState       = 802,
-    InternalUnknown            = 899
+    InternalUnknown            = 899,
+
+    // Recovery errors (900-999)
+    RecoveryNotAllowed         = 900,
+    RecoveryInProgress         = 901,
+    RecoveryPreconditionFailed = 902,
+    RecoveryCleanupFailed      = 903,
+    RecoveryRestartFailed      = 904,
+    RecoveryReadinessFailed    = 905,
+    RecoveryTimeout            = 906,
+    RecoveryExhausted          = 907,
+    RecoveryStateInvalid       = 908,
+    SessionRecoveryFailed      = 909
 };
 
 [[nodiscard]] std::string_view to_string(ErrorCode code) noexcept;

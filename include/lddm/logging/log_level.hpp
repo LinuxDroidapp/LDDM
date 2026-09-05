@@ -28,7 +28,8 @@ enum class LogSubsystem : std::uint8_t {
     CONFIG   = 3,
     PLATFORM = 4,
     WESTON   = 5,
-    LDDE     = 6
+    LDDE     = 6,
+    RECOVERY = 7
 };
 
 [[nodiscard]] std::string_view to_string(LogSubsystem subsystem) noexcept;

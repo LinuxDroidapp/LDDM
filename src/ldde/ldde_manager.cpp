@@ -405,4 +405,15 @@ void LddeManager::cleanup_resources() noexcept {
     }
 }
 
+void LddeManager::reset() {
+    std::lock_guard lock(mutex_);
+    if (process_handle_ && supervisor_) {
+        (void)supervisor_->stop_process(*process_handle_, std::chrono::milliseconds(1000));
+    }
+    cleanup_resources();
+    process_ = nullptr;
+    process_handle_ = std::nullopt;
+    state_ = LddeState::Created;
+}
+
 } // namespace lddm::ldde

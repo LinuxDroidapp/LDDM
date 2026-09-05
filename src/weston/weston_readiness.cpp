@@ -80,7 +80,7 @@ WaylandSocketStatus WestonReadinessDetector::check_socket(
     }
 
     // 3. Socket connection usability check
-    int fd = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
+    int fd = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC | SOCK_NONBLOCK, 0);
     if (fd < 0) {
         return WaylandSocketStatus::SocketCreatedUnusable;
     }
@@ -94,7 +94,7 @@ WaylandSocketStatus WestonReadinessDetector::check_socket(
     int err = errno;
     close(fd);
 
-    if (ret == 0) {
+    if (ret == 0 || err == EINPROGRESS) {
         return WaylandSocketStatus::WaylandConnectionUsable;
     }
 

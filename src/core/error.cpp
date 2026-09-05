@@ -14,6 +14,7 @@ std::string_view to_string(ErrorCategory category) noexcept {
         case ErrorCategory::Desktop:       return "Desktop";
         case ErrorCategory::Resource:      return "Resource";
         case ErrorCategory::Internal:      return "Internal";
+        case ErrorCategory::Recovery:      return "Recovery";
     }
     return "Unknown";
 }
@@ -92,6 +93,16 @@ std::string_view to_string(ErrorCode code) noexcept {
         case ErrorCode::InternalNotImplemented:    return "InternalNotImplemented";
         case ErrorCode::InternalInvalidState:      return "InternalInvalidState";
         case ErrorCode::InternalUnknown:           return "InternalUnknown";
+        case ErrorCode::RecoveryNotAllowed:         return "RecoveryNotAllowed";
+        case ErrorCode::RecoveryInProgress:         return "RecoveryInProgress";
+        case ErrorCode::RecoveryPreconditionFailed: return "RecoveryPreconditionFailed";
+        case ErrorCode::RecoveryCleanupFailed:      return "RecoveryCleanupFailed";
+        case ErrorCode::RecoveryRestartFailed:      return "RecoveryRestartFailed";
+        case ErrorCode::RecoveryReadinessFailed:    return "RecoveryReadinessFailed";
+        case ErrorCode::RecoveryTimeout:            return "RecoveryTimeout";
+        case ErrorCode::RecoveryExhausted:          return "RecoveryExhausted";
+        case ErrorCode::RecoveryStateInvalid:       return "RecoveryStateInvalid";
+        case ErrorCode::SessionRecoveryFailed:      return "SessionRecoveryFailed";
     }
     return "UnknownCode";
 }

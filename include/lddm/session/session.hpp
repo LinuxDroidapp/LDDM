@@ -18,6 +18,10 @@
 
 namespace lddm {
 
+namespace recovery {
+class RecoveryManager;
+}
+
 class Session {
 public:
     explicit Session(SessionConfig config);
@@ -45,10 +49,12 @@ public:
     void attach_component(std::shared_ptr<ISessionComponent> component);
     void attach_compositor(std::shared_ptr<ICompositorInstance> compositor);
     void attach_desktop(std::shared_ptr<IDesktopEnvironmentInstance> desktop);
+    void attach_recovery(std::shared_ptr<recovery::RecoveryManager> recovery);
 
     [[nodiscard]] ICompositorInstance* compositor() const noexcept { return compositor_.get(); }
     [[nodiscard]] IDesktopEnvironmentInstance* desktop() const noexcept { return desktop_.get(); }
     [[nodiscard]] std::shared_ptr<ProcessSupervisor> supervisor() const noexcept { return supervisor_; }
+    [[nodiscard]] recovery::RecoveryManager* recovery() const noexcept { return recovery_.get(); }
 
     [[nodiscard]] bool is_graphical_session_ready() const noexcept;
 
@@ -81,6 +87,7 @@ private:
     std::shared_ptr<ICompositorInstance> compositor_;
     std::shared_ptr<IDesktopEnvironmentInstance> desktop_;
     std::shared_ptr<ProcessSupervisor> supervisor_;
+    std::shared_ptr<recovery::RecoveryManager> recovery_;
 };
 
 } // namespace lddm

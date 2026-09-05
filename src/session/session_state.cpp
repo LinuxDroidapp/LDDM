@@ -14,6 +14,7 @@ std::string_view to_string(SessionState state) noexcept {
         case SessionState::STOPPING:     return "STOPPING";
         case SessionState::STOPPED:      return "STOPPED";
         case SessionState::FAILED:       return "FAILED";
+        case SessionState::RECOVERING:   return "RECOVERING";
     }
     return "UNKNOWN";
 }
@@ -34,21 +35,24 @@ bool is_valid_session_transition(SessionState from, SessionState to) noexcept {
             return to == SessionState::STARTING || to == SessionState::STOPPING || to == SessionState::FAILED;
 
         case SessionState::STARTING:
-            return to == SessionState::RUNNING || to == SessionState::STOPPING || to == SessionState::FAILED;
+            return to == SessionState::RUNNING || to == SessionState::STOPPING || to == SessionState::FAILED || to == SessionState::RECOVERING;
 
         case SessionState::RUNNING:
-            return to == SessionState::STOPPING || to == SessionState::FAILED;
+            return to == SessionState::STOPPING || to == SessionState::FAILED || to == SessionState::RECOVERING;
 
         case SessionState::STOPPING:
             return to == SessionState::STOPPED || to == SessionState::FAILED;
 
         case SessionState::STOPPED:
             // Allow re-initialization / restart from STOPPED
-            return to == SessionState::INITIALIZING;
+            return to == SessionState::INITIALIZING || to == SessionState::RECOVERING;
 
         case SessionState::FAILED:
             // Allow recovery restart from FAILED
-            return to == SessionState::INITIALIZING;
+            return to == SessionState::INITIALIZING || to == SessionState::RECOVERING;
+
+        case SessionState::RECOVERING:
+            return to == SessionState::RUNNING || to == SessionState::STARTING || to == SessionState::INITIALIZING || to == SessionState::STOPPING || to == SessionState::FAILED;
     }
 
     return false;
@@ -88,7 +92,8 @@ bool SessionStateMachine::is_active() const noexcept {
     std::lock_guard<std::mutex> lock(mutex_);
     return current_state_ == SessionState::STARTING ||
            current_state_ == SessionState::RUNNING ||
-           current_state_ == SessionState::STOPPING;
+           current_state_ == SessionState::STOPPING ||
+           current_state_ == SessionState::RECOVERING;
 }
 
 bool SessionStateMachine::can_transition_to(SessionState target) const noexcept {

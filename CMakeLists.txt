@@ -109,6 +109,10 @@ set(LDDM_CORE_SOURCES
     src/ldde/ldde_readiness.cpp
     src/ldde/ldde_diagnostics.cpp
     src/ldde/ldde_manager.cpp
+    src/recovery/recovery_types.cpp
+    src/recovery/recovery_config.cpp
+    src/recovery/recovery_diagnostics.cpp
+    src/recovery/recovery_manager.cpp
 )
 
 add_library(lddm_core STATIC ${LDDM_CORE_SOURCES})

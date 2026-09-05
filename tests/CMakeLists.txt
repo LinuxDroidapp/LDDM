@@ -29,6 +29,10 @@ set(UNIT_TESTS
     test_ldde_spec
     test_ldde_readiness
     test_ldde_diagnostics
+    test_recovery_types
+    test_recovery_config
+    test_recovery_diagnostics
+    test_recovery_preconditions
 )
 
 set(INTEGRATION_TESTS
@@ -45,6 +49,11 @@ set(INTEGRATION_TESTS
     test_ldde_failure_recovery
     test_graphical_session_coordination
     test_graphical_session_failures
+    test_recovery_ldde_component
+    test_recovery_weston_component
+    test_recovery_session_restart
+    test_recovery_exhaustion
+    test_recovery_stability
 )
 
 foreach(test_name ${UNIT_TESTS})
