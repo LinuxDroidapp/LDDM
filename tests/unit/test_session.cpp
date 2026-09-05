@@ -55,71 +55,79 @@ TEST_CASE(Session_CreationAndEnvironment) {
         .type = lddm::SessionType::Wayland,
         .user = "droiduser",
         .wayland_display = "wayland-9",
-        .runtime_dir = "/run/user/1000"
+        .base_runtime_dir = "/tmp/lddm_test_runtime"
     };
 
     lddm::Session session(cfg);
     EXPECT_EQ(session.id().str(), "session-test-01");
-    EXPECT_EQ(session.state(), lddm::SessionLifecycleState::Idle);
+    EXPECT_EQ(session.state(), lddm::SessionState::CREATED);
+
+    // Initialize to populate environment
+    auto init_res = session.initialize();
+    EXPECT_TRUE(init_res.has_value());
+    EXPECT_EQ(session.state(), lddm::SessionState::READY);
 
     const auto& env = session.environment();
-    auto it_user = env.find("USER");
-    EXPECT_TRUE(it_user != env.end());
-    if (it_user != env.end()) {
-        EXPECT_EQ(it_user->second, "droiduser");
+    auto user_opt = env.get("USER");
+    EXPECT_TRUE(user_opt.has_value());
+    if (user_opt) {
+        EXPECT_EQ(*user_opt, "droiduser");
     }
 
-    auto it_disp = env.find("WAYLAND_DISPLAY");
-    EXPECT_TRUE(it_disp != env.end());
-    if (it_disp != env.end()) {
-        EXPECT_EQ(it_disp->second, "wayland-9");
+    auto disp_opt = env.get("WAYLAND_DISPLAY");
+    EXPECT_TRUE(disp_opt.has_value());
+    if (disp_opt) {
+        EXPECT_EQ(*disp_opt, "wayland-9");
     }
+
+    (void)session.stop();
 }
 
 TEST_CASE(Session_LifecycleAndComponentOrchestration) {
     lddm::SessionConfig cfg{
         .id = lddm::SessionId("session-orchestration"),
         .type = lddm::SessionType::Wayland,
-        .user = "root"
+        .user = "root",
+        .base_runtime_dir = "/tmp/lddm_test_runtime"
     };
 
     lddm::Session session(cfg);
-    auto comp = std::make_unique<MockCompositor>();
-    auto* comp_ptr = comp.get();
-    session.attach_compositor(std::move(comp));
+    auto comp = std::make_shared<MockCompositor>();
+    auto desk = std::make_shared<MockDesktop>();
 
-    auto desk = std::make_unique<MockDesktop>();
-    auto* desk_ptr = desk.get();
-    session.attach_desktop(std::move(desk));
+    session.attach_compositor(comp);
+    session.attach_desktop(desk);
 
-    EXPECT_FALSE(comp_ptr->is_running());
-    EXPECT_FALSE(desk_ptr->is_running());
+    EXPECT_FALSE(comp->is_running());
+    EXPECT_FALSE(desk->is_running());
 
     // Activate session
-    auto act_res = session.activate();
+    auto act_res = session.start();
     EXPECT_TRUE(act_res.has_value());
-    EXPECT_EQ(session.state(), lddm::SessionLifecycleState::Active);
-    EXPECT_TRUE(comp_ptr->is_running());
-    EXPECT_TRUE(desk_ptr->is_running());
+    EXPECT_EQ(session.state(), lddm::SessionState::RUNNING);
+    EXPECT_TRUE(comp->is_running());
+    EXPECT_TRUE(desk->is_running());
 
     // Terminate session
-    auto term_res = session.terminate();
+    auto term_res = session.stop();
     EXPECT_TRUE(term_res.has_value());
-    EXPECT_EQ(session.state(), lddm::SessionLifecycleState::Terminated);
-    EXPECT_FALSE(comp_ptr->is_running());
-    EXPECT_FALSE(desk_ptr->is_running());
+    EXPECT_EQ(session.state(), lddm::SessionState::STOPPED);
+    EXPECT_FALSE(comp->is_running());
+    EXPECT_FALSE(desk->is_running());
 }
 
 TEST_CASE(Session_InvalidTransitionRejected) {
-    lddm::SessionConfig cfg{.id = lddm::SessionId("session-invalid-trans")};
+    lddm::SessionConfig cfg{
+        .id = lddm::SessionId("session-invalid-trans"),
+        .base_runtime_dir = "/tmp/lddm_test_runtime"
+    };
     lddm::Session session(cfg);
 
-    // Idle directly to Terminated is illegal
-    auto res = session.transition_to(lddm::SessionLifecycleState::Terminated);
+    // Direct jump from CREATED to STOPPED is illegal
+    auto res = session.transition_to(lddm::SessionState::STOPPED);
     EXPECT_FALSE(res.has_value());
     EXPECT_EQ(res.error().code(), lddm::ErrorCode::SessionInvalidState);
-    EXPECT_EQ(session.state(), lddm::SessionLifecycleState::Idle);
+    EXPECT_EQ(session.state(), lddm::SessionState::CREATED);
 }
 
 TEST_MAIN()
-

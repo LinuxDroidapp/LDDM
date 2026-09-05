@@ -35,12 +35,19 @@ enum class ErrorCode : std::uint32_t {
     ConfigInvalidValue         = 105,
 
     // Session errors (200-299)
-    SessionAlreadyActive       = 200,
-    SessionNotFound            = 201,
-    SessionInvalidState        = 202,
-    SessionStartupFailed       = 203,
-    SessionTeardownFailed      = 204,
-    SessionEnvironmentError    = 205,
+    SessionAlreadyActive           = 200,
+    SessionNotFound                = 201,
+    SessionInvalidState            = 202,
+    SessionStartupFailed           = 203,
+    SessionTeardownFailed          = 204,
+    SessionEnvironmentError        = 205,
+    SessionAlreadyExists           = 206,
+    SessionInitializationFailed    = 207,
+    SessionRuntimeDirectoryFailed  = 208,
+    SessionEnvironmentFailed       = 209,
+    SessionStartFailed             = 210,
+    SessionStopFailed              = 211,
+    SessionCleanupFailed           = 212,
 
     // Process errors (300-399)
     ProcessSpawnFailed         = 300,

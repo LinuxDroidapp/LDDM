@@ -5,28 +5,34 @@
 
 namespace lddm {
 
-class ICompositorInstance {
+struct SessionContext;
+
+class ISessionComponent {
 public:
-    virtual ~ICompositorInstance() = default;
+    virtual ~ISessionComponent() = default;
 
     [[nodiscard]] virtual const std::string& name() const noexcept = 0;
     [[nodiscard]] virtual bool is_running() const noexcept = 0;
-    [[nodiscard]] virtual const std::string& socket_path() const noexcept = 0;
+
+    virtual Result<void> initialize(const SessionContext& context) {
+        (void)context;
+        return Result<void>::success();
+    }
 
     virtual Result<void> start() = 0;
     virtual Result<void> stop() = 0;
 };
 
-class IDesktopEnvironmentInstance {
+class ICompositorInstance : public ISessionComponent {
 public:
-    virtual ~IDesktopEnvironmentInstance() = default;
+    ~ICompositorInstance() override = default;
 
-    [[nodiscard]] virtual const std::string& name() const noexcept = 0;
-    [[nodiscard]] virtual bool is_running() const noexcept = 0;
+    [[nodiscard]] virtual const std::string& socket_path() const noexcept = 0;
+};
 
-    virtual Result<void> start() = 0;
-    virtual Result<void> stop() = 0;
+class IDesktopEnvironmentInstance : public ISessionComponent {
+public:
+    ~IDesktopEnvironmentInstance() override = default;
 };
 
 } // namespace lddm
-

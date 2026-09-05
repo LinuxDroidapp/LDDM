@@ -32,16 +32,22 @@ LDDM provides a pure Linux-native session manager with zero Android API coupling
 
 ---
 
-## Features (Phase L0 Foundation)
+## Features (Phase L0 Foundation & Phase L1 Session Model)
 
 * **Modern C++20 Architecture**: Strict RAII, deterministic lifetimes, move semantics, and strong types.
+* **Production Session Model (Phase L1)**:
+  * Strongly-typed `SessionId` generation (timestamp + atomic counter) and `SessionIdentity`.
+  * Finite state machine (`SessionStateMachine`) with transition validation, history recording, and observer callbacks.
+  * Isolated per-session runtime directory hierarchy (`SessionPaths`) with `0700` POSIX permission enforcement.
+  * Deterministic multi-layer session environment generation (`SessionEnvironment`) with redacted diagnostics.
+  * Centralized `SessionManager` managing multi-session registries, active session selection, and graceful teardown.
+  * Robust resource tracking (`SessionResourceTracker`) ensuring zero leaked file descriptors or temporary files.
 * **Unified Error Model**: Categorized errors (`Configuration`, `Session`, `Process`, `Platform`, `Compositor`, `Desktop`, `Resource`, `Internal`) with stable codes, source location tracking, and type-safe `Result<T>` propagation.
 * **Centralized Structured Logging**: Thread-safe multi-sink logging (`StreamSink`, `FileSink`, `MemorySink`) with severity levels (`TRACE` to `FATAL`), subsystem filtering, and ANSI terminal colorization.
 * **Linux-Native Configuration**: INI-style configuration parser with default fallback, schema validation, and typed structures.
-* **Lifecycle State Machine**: Explicit, observable state transitions (`CREATED` → `INITIALIZING` → `READY` → `STARTING` → `RUNNING` → `STOPPING` → `STOPPED`).
 * **Platform Abstraction Layer**: Safe RAII Linux primitives including `UniqueFd`, signal handling via self-pipe trick, high-resolution monotonic clocks, and XDG directory resolution.
-* **Session Contract**: Abstract session model decoupling display management from compositor (`Weston`) and desktop (`LDDE`) implementations.
-* **Zero External Dependency Test Harness**: Complete unit and integration test suite running seamlessly under `CTest`.
+* **Session Contract**: Abstract session component interfaces (`ISessionComponent`, `ICompositorInstance`, `IDesktopEnvironmentInstance`) ready for Weston and LDDE.
+* **Zero External Dependency Test Harness**: Complete unit and integration test suite (17 targets) running seamlessly under `CTest`.
 
 ---
 
@@ -82,6 +88,7 @@ LDDM/
     ├── configuration.md
     ├── lifecycle.md
     ├── logging.md
+    ├── session.md
     └── development.md
 ```
 

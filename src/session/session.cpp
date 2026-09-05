@@ -5,180 +5,279 @@ namespace lddm {
 
 Session::Session(SessionConfig config)
     : config_(std::move(config))
-    , state_(SessionLifecycleState::Idle) {
-    // Populate base environment
-    environment_["USER"] = config_.user;
-    environment_["LOGNAME"] = config_.user;
-    environment_["XDG_RUNTIME_DIR"] = config_.runtime_dir;
+    , paths_(config_.id,
+             config_.base_runtime_dir.empty() ? SessionPaths::default_base_runtime_dir() : config_.base_runtime_dir,
+             config_.wayland_display)
+    , state_machine_(config_.id.str(), SessionState::CREATED)
+    , diagnostics_(config_.id) {
+    identity_.id = config_.id;
+    identity_.type = static_cast<std::uint32_t>(config_.type);
+    identity_.user_id = config_.uid;
+    identity_.group_id = config_.gid;
+    identity_.username = config_.user;
+    identity_.created_at = SystemClock::now();
 
-    if (config_.type == SessionType::Wayland) {
-        environment_["WAYLAND_DISPLAY"] = config_.wayland_display;
-        environment_["XDG_SESSION_TYPE"] = "wayland";
-    } else if (config_.type == SessionType::X11) {
-        environment_["DISPLAY"] = config_.x11_display;
-        environment_["XDG_SESSION_TYPE"] = "x11";
-    } else {
-        environment_["XDG_SESSION_TYPE"] = "headless";
-    }
-
-    for (const auto& [k, v] : config_.environment_overrides) {
-        environment_[k] = v;
-    }
+    // Hook state transitions into diagnostics
+    state_machine_.register_observer([this](const SessionTransitionEvent& ev) {
+        diagnostics_.record_state_transition(ev);
+    });
 
     LDDM_LOG_INFO(LogSubsystem::SESSION, "Session '{}' created for user '{}' (type: {})",
-                  config_.id.str(), config_.user, to_string(config_.type));
+                  identity_.id.str(), identity_.username, to_string(config_.type));
 }
 
 Session::~Session() {
-    if (state_ == SessionLifecycleState::Active ||
-        state_ == SessionLifecycleState::Preparing ||
-        state_ == SessionLifecycleState::Paused) {
-        (void)terminate();
-    }
+    (void)cleanup();
 }
 
-Session::Session(Session&& other) noexcept {
-    std::lock_guard<std::mutex> lock(other.mutex_);
-    config_ = std::move(other.config_);
-    state_ = other.state_;
-    environment_ = std::move(other.environment_);
-    compositor_ = std::move(other.compositor_);
-    desktop_ = std::move(other.desktop_);
-    other.state_ = SessionLifecycleState::Terminated;
+
+SessionState Session::state() const noexcept {
+    return state_machine_.state();
 }
 
-Session& Session::operator=(Session&& other) noexcept {
-    if (this != &other) {
-        std::scoped_lock lock(mutex_, other.mutex_);
-        if (state_ == SessionLifecycleState::Active ||
-            state_ == SessionLifecycleState::Preparing) {
-            (void)terminate();
-        }
-        config_ = std::move(other.config_);
-        state_ = other.state_;
-        environment_ = std::move(other.environment_);
-        compositor_ = std::move(other.compositor_);
-        desktop_ = std::move(other.desktop_);
-        other.state_ = SessionLifecycleState::Terminated;
-    }
-    return *this;
-}
-
-SessionLifecycleState Session::state() const noexcept {
-    std::lock_guard<std::mutex> lock(mutex_);
-    return state_;
+SessionContext Session::context() const noexcept {
+    return SessionContext{
+        .identity = identity_,
+        .config = config_,
+        .paths = paths_,
+        .environment = environment_,
+        .state = state()
+    };
 }
 
 void Session::set_environment_variable(std::string key, std::string value) {
-    std::lock_guard<std::mutex> lock(mutex_);
-    environment_[std::move(key)] = std::move(value);
+    std::lock_guard lock(mutex_);
+    environment_.set(std::move(key), std::move(value));
 }
 
-void Session::attach_compositor(std::unique_ptr<ICompositorInstance> compositor) {
-    std::lock_guard<std::mutex> lock(mutex_);
-    compositor_ = std::move(compositor);
+void Session::attach_component(std::shared_ptr<ISessionComponent> component) {
+    std::lock_guard lock(mutex_);
+    if (component) {
+        LDDM_LOG_INFO(LogSubsystem::SESSION, "[Session '{}'] Attached component '{}'",
+                      identity_.id.str(), component->name());
+        components_.push_back(std::move(component));
+    }
+}
+
+void Session::attach_compositor(std::shared_ptr<ICompositorInstance> compositor) {
+    std::lock_guard lock(mutex_);
+    compositor_ = compositor;
     if (compositor_) {
-        LDDM_LOG_INFO(LogSubsystem::SESSION, "Attached compositor '{}' to session '{}'",
-                      compositor_->name(), config_.id.str());
+        LDDM_LOG_INFO(LogSubsystem::SESSION, "[Session '{}'] Attached compositor '{}'",
+                      identity_.id.str(), compositor_->name());
+        components_.push_back(compositor_);
     }
 }
 
-void Session::attach_desktop(std::unique_ptr<IDesktopEnvironmentInstance> desktop) {
-    std::lock_guard<std::mutex> lock(mutex_);
-    desktop_ = std::move(desktop);
+void Session::attach_desktop(std::shared_ptr<IDesktopEnvironmentInstance> desktop) {
+    std::lock_guard lock(mutex_);
+    desktop_ = desktop;
     if (desktop_) {
-        LDDM_LOG_INFO(LogSubsystem::SESSION, "Attached desktop environment '{}' to session '{}'",
-                      desktop_->name(), config_.id.str());
+        LDDM_LOG_INFO(LogSubsystem::SESSION, "[Session '{}'] Attached desktop environment '{}'",
+                      identity_.id.str(), desktop_->name());
+        components_.push_back(desktop_);
     }
 }
 
-Result<void> Session::transition_to(SessionLifecycleState target, std::string reason) {
-    std::lock_guard<std::mutex> lock(mutex_);
-    if (state_ == target) {
-        return Result<void>::success();
+Result<void> Session::transition_to(SessionState target, std::string reason) {
+    return state_machine_.transition_to(target, std::move(reason));
+}
+
+Result<void> Session::initialize() {
+    std::lock_guard lock(mutex_);
+
+    auto trans_res = state_machine_.transition_to(SessionState::INITIALIZING, "Initializing session resources");
+    if (!trans_res.has_value()) {
+        return trans_res;
     }
 
-    if (!is_valid_session_transition(state_, target)) {
-        std::string err_msg = "Invalid session state transition from ";
-        err_msg += to_string(state_);
-        err_msg += " to ";
-        err_msg += to_string(target);
-        if (!reason.empty()) {
-            err_msg += " (reason: ";
-            err_msg += reason;
-            err_msg += ")";
+    // 1. Prepare runtime directories
+    auto path_res = paths_.create_directories();
+    if (!path_res.has_value()) {
+        diagnostics_.record_error(path_res.error());
+        (void)state_machine_.transition_to(SessionState::FAILED, "Runtime directory creation failed");
+        (void)resources_.cleanup();
+        return path_res;
+    }
+
+    // 2. Prepare environment variables
+    environment_.populate_session_defaults(config_, paths_);
+
+    // 3. Initialize attached components with session context
+    auto ctx = context();
+    for (const auto& comp : components_) {
+        if (comp) {
+            auto comp_init = comp->initialize(ctx);
+            if (!comp_init.has_value()) {
+                diagnostics_.record_error(comp_init.error());
+                (void)state_machine_.transition_to(SessionState::FAILED, "Component initialization failed: " + comp->name());
+                (void)cleanup();
+                return comp_init;
+            }
         }
-        LDDM_LOG_ERROR(LogSubsystem::SESSION, "[Session '{}'] {}", config_.id.str(), err_msg);
-        return Result<void>::failure(Error(ErrorCategory::Session,
-                                          ErrorCode::SessionInvalidState,
-                                          std::move(err_msg)));
     }
 
-    auto old_state = state_;
-    state_ = target;
-    LDDM_LOG_INFO(LogSubsystem::SESSION, "[Session '{}'] Transition: {} -> {}{}",
-                  config_.id.str(),
-                  to_string(old_state),
-                  to_string(target),
-                  reason.empty() ? "" : (" (reason: " + reason + ")"));
+    diagnostics_.set_initialized_at(SystemClock::now());
 
+    // 4. Transition to READY
+    auto ready_res = state_machine_.transition_to(SessionState::READY, "Session initialization complete");
+    if (!ready_res.has_value()) {
+        diagnostics_.record_error(ready_res.error());
+        (void)state_machine_.transition_to(SessionState::FAILED, "Transition to READY failed");
+        (void)cleanup();
+        return ready_res;
+    }
+
+    LDDM_LOG_INFO(LogSubsystem::SESSION, "[Session '{}'] Ready for activation", identity_.id.str());
     return Result<void>::success();
 }
 
 Result<void> Session::prepare() {
-    auto res = transition_to(SessionLifecycleState::Preparing, "Session initialization");
-    if (!res.has_value()) {
-        return res;
+    auto current = state();
+    if (current == SessionState::CREATED) {
+        return initialize();
     }
-    return Result<void>::success();
+    if (current == SessionState::READY) {
+        return Result<void>::success();
+    }
+    return Result<void>::failure(Error(
+        ErrorCategory::Session,
+        ErrorCode::SessionInvalidState,
+        "Cannot prepare session in state " + std::string(to_string(current)),
+        "session_id=" + identity_.id.str()));
 }
 
-Result<void> Session::activate() {
-    if (state_ != SessionLifecycleState::Preparing) {
+Result<void> Session::start() {
+    std::lock_guard lock(mutex_);
+
+    if (state_machine_.state() != SessionState::READY) {
         auto prep_res = prepare();
         if (!prep_res.has_value()) {
             return prep_res;
         }
     }
 
-    if (compositor_) {
-        auto comp_res = compositor_->start();
-        if (!comp_res.has_value()) {
-            (void)transition_to(SessionLifecycleState::Failed, "Compositor start failed");
-            return comp_res;
-        }
+    auto start_trans = state_machine_.transition_to(SessionState::STARTING, "Starting session components");
+    if (!start_trans.has_value()) {
+        return start_trans;
     }
 
-    if (desktop_) {
-        auto desk_res = desktop_->start();
-        if (!desk_res.has_value()) {
-            if (compositor_) {
-                (void)compositor_->stop();
+    // Start components in order
+    std::vector<std::shared_ptr<ISessionComponent>> started;
+    for (const auto& comp : components_) {
+        if (comp) {
+            auto res = comp->start();
+            if (!res.has_value()) {
+                diagnostics_.record_error(res.error());
+                // Roll back started components in reverse
+                for (auto it = started.rbegin(); it != started.rend(); ++it) {
+                    (void)(*it)->stop();
+                }
+                (void)state_machine_.transition_to(SessionState::FAILED, "Component failed to start: " + comp->name());
+                return res;
             }
-            (void)transition_to(SessionLifecycleState::Failed, "Desktop environment start failed");
-            return desk_res;
+            started.push_back(comp);
         }
     }
 
-    return transition_to(SessionLifecycleState::Active, "All components started");
+    diagnostics_.set_started_at(SystemClock::now());
+
+    auto run_trans = state_machine_.transition_to(SessionState::RUNNING, "All session components started");
+    if (!run_trans.has_value()) {
+        diagnostics_.record_error(run_trans.error());
+        for (auto it = started.rbegin(); it != started.rend(); ++it) {
+            (void)(*it)->stop();
+        }
+        (void)state_machine_.transition_to(SessionState::FAILED, "Failed to enter RUNNING state");
+        return run_trans;
+    }
+
+    LDDM_LOG_INFO(LogSubsystem::SESSION, "[Session '{}'] Running", identity_.id.str());
+    return Result<void>::success();
 }
 
-Result<void> Session::terminate() {
-    auto term_res = transition_to(SessionLifecycleState::Terminating, "Session termination requested");
-    if (!term_res.has_value() && state_ != SessionLifecycleState::Terminating) {
-        return term_res;
+Result<void> Session::stop() {
+    std::lock_guard lock(mutex_);
+
+    auto current = state_machine_.state();
+    if (current == SessionState::STOPPED) {
+        return Result<void>::success();
     }
 
-    if (desktop_) {
-        (void)desktop_->stop();
+    if (current != SessionState::STARTING &&
+        current != SessionState::RUNNING &&
+        current != SessionState::READY &&
+        current != SessionState::INITIALIZING) {
+        return Result<void>::failure(Error(
+            ErrorCategory::Session,
+            ErrorCode::SessionInvalidState,
+            "Cannot stop session in state " + std::string(to_string(current)),
+            "session_id=" + identity_.id.str()));
     }
 
-    if (compositor_) {
-        (void)compositor_->stop();
+    (void)state_machine_.transition_to(SessionState::STOPPING, "Stopping session components");
+
+    // Stop components in reverse order
+    for (auto it = components_.rbegin(); it != components_.rend(); ++it) {
+        if (*it && (*it)->is_running()) {
+            (void)(*it)->stop();
+        }
     }
 
-    return transition_to(SessionLifecycleState::Terminated, "Teardown complete");
+    // Clean tracked resources
+    (void)resources_.cleanup();
+
+    // Clean runtime directory if configured
+    if (config_.clean_runtime_dir_on_stop) {
+        (void)paths_.remove_directories();
+    }
+
+    diagnostics_.set_stopped_at(SystemClock::now());
+
+    (void)state_machine_.transition_to(SessionState::STOPPED, "Session teardown complete");
+    LDDM_LOG_INFO(LogSubsystem::SESSION, "[Session '{}'] Stopped cleanly", identity_.id.str());
+    return Result<void>::success();
+}
+
+Result<void> Session::fail(Error error) {
+    std::lock_guard lock(mutex_);
+    diagnostics_.record_error(error);
+
+    LDDM_LOG_ERROR(LogSubsystem::SESSION, "[Session '{}'] Failing due to error: {}",
+                   identity_.id.str(), error.to_string());
+
+    (void)state_machine_.transition_to(SessionState::FAILED, error.message());
+
+    // Teardown components
+    for (auto it = components_.rbegin(); it != components_.rend(); ++it) {
+        if (*it && (*it)->is_running()) {
+            (void)(*it)->stop();
+        }
+    }
+
+    (void)resources_.cleanup();
+    if (config_.clean_runtime_dir_on_stop) {
+        (void)paths_.remove_directories();
+    }
+
+    return Result<void>::success();
+}
+
+Result<void> Session::cleanup() noexcept {
+    auto current = state_machine_.state();
+    if (current == SessionState::RUNNING ||
+        current == SessionState::STARTING ||
+        current == SessionState::READY ||
+        current == SessionState::INITIALIZING) {
+        (void)stop();
+    }
+
+    (void)resources_.cleanup();
+    if (config_.clean_runtime_dir_on_stop) {
+        (void)paths_.remove_directories();
+    }
+
+    return Result<void>::success();
 }
 
 } // namespace lddm
-

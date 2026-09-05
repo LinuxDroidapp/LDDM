@@ -43,7 +43,7 @@ TEST_CASE(Integration_FullLifecycleRun) {
         .type = lddm::SessionType::Wayland,
         .user = "root",
         .wayland_display = "wayland-0",
-        .runtime_dir = "/run/lddm"
+        .base_runtime_dir = "/tmp/lddm_integration_tests"
     };
     lddm::Session session(std::move(s_cfg));
     auto prep_res = session.prepare();
@@ -60,7 +60,7 @@ TEST_CASE(Integration_FullLifecycleRun) {
 
     auto sess_term = session.terminate();
     EXPECT_TRUE(sess_term.has_value());
-    EXPECT_EQ(session.state(), lddm::SessionLifecycleState::Terminated);
+    EXPECT_EQ(session.state(), lddm::SessionState::STOPPED);
 
     // 11. Enter STOPPED
     auto stopped_res = lifecycle.transition_to(lddm::LifecycleState::STOPPED, "Shutdown complete");

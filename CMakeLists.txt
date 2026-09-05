@@ -82,9 +82,15 @@ set(LDDM_CORE_SOURCES
     src/platform/signal_handler.cpp
     src/platform/platform.cpp
     src/process/process_types.cpp
+    src/session/session_id.cpp
     src/session/session_state.cpp
     src/session/session_config.cpp
+    src/session/session_paths.cpp
+    src/session/session_environment.cpp
+    src/session/session_resource.cpp
+    src/session/session_diagnostics.cpp
     src/session/session.cpp
+    src/session/session_manager.cpp
 )
 
 add_library(lddm_core STATIC ${LDDM_CORE_SOURCES})

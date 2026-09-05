@@ -5,6 +5,7 @@
 #include "lddm/logging/logger.hpp"
 #include "lddm/platform/signal_handler.hpp"
 #include "lddm/session/session.hpp"
+#include "lddm/session/session_manager.hpp"
 
 #include <iostream>
 #include <string>
@@ -160,22 +161,27 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    // Create primary session
-    lddm::SessionConfig session_cfg{
-        .id = lddm::SessionId("session-default"),
-        .type = (config.session.session_type == "wayland") ? lddm::SessionType::Wayland :
-                (config.session.session_type == "x11")     ? lddm::SessionType::X11 :
-                                                            lddm::SessionType::Headless,
-        .user = config.session.default_user,
-        .wayland_display = config.session.wayland_display,
-        .runtime_dir = config.server.runtime_dir,
-        .environment_overrides = config.environment.variables
-    };
-    lddm::Session session(std::move(session_cfg));
+    // Create primary session via SessionManager
+    lddm::SessionManager session_manager;
+    auto session_cfg = lddm::SessionConfig::from_lddm_config(config, lddm::SessionId("session-default"));
 
-    if (auto sess_res = session.prepare(); !sess_res) {
-        LDDM_LOG_ERROR(lddm::LogSubsystem::SESSION, "Failed to prepare session: {}", sess_res.error().to_string());
-        (void)lifecycle.transition_to(lddm::LifecycleState::FAILED, "Session preparation failed");
+    auto create_res = session_manager.create_session(std::move(session_cfg));
+    if (!create_res.has_value()) {
+        LDDM_LOG_FATAL(lddm::LogSubsystem::SESSION, "Failed to create session: {}", create_res.error().to_string());
+        (void)lifecycle.transition_to(lddm::LifecycleState::FAILED, "Session creation failed");
+        return 1;
+    }
+
+    auto active_session = create_res.value();
+    if (auto init_res = active_session->initialize(); !init_res) {
+        LDDM_LOG_ERROR(lddm::LogSubsystem::SESSION, "Failed to initialize session: {}", init_res.error().to_string());
+        (void)lifecycle.transition_to(lddm::LifecycleState::FAILED, "Session initialization failed");
+        return 1;
+    }
+
+    if (auto start_res = active_session->start(); !start_res) {
+        LDDM_LOG_ERROR(lddm::LogSubsystem::SESSION, "Failed to start session: {}", start_res.error().to_string());
+        (void)lifecycle.transition_to(lddm::LifecycleState::FAILED, "Session startup failed");
         return 1;
     }
 
@@ -198,8 +204,8 @@ int main(int argc, char* argv[]) {
     // Transition to STOPPING
     (void)lifecycle.transition_to(lddm::LifecycleState::STOPPING, "Graceful termination initiated");
 
-    // Terminate session
-    (void)session.terminate();
+    // Stop all sessions
+    (void)session_manager.stop_all_sessions();
 
     // Transition to STOPPED
     (void)lifecycle.transition_to(lddm::LifecycleState::STOPPED, "Shutdown complete");

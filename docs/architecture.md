@@ -90,7 +90,13 @@
    - RAII wrappers: `UniqueFd`.
    - OS abstractions: high-resolution monotonic clock, environment management, XDG directory resolution, signal handling (`sigaction` + self-pipe).
 
-5. **`lddm::session`**:
-   - Session contract: `Session`, `ICompositorInstance`, `IDesktopEnvironmentInstance`.
-   - Preparation, activation, pausing, teardown.
+5. **`lddm::session`** (Phase L1):
+   - `SessionIdentity`: Unique `SessionId` (monotonic sequence + timestamp), user credentials, session type.
+   - `SessionStateMachine`: State machine with transition validation, history recording, and observer callbacks.
+   - `SessionPaths`: Per-session directory isolation (`/run/lddm/<session-id>`) with `0700` permission enforcement.
+   - `SessionEnvironment`: Deterministic multi-layer environment resolution (base -> session -> desktop -> overrides) with redacted diagnostic summaries.
+   - `SessionResourceTracker`: RAII tracking of open file descriptors and temporary files ensuring zero leaks on stop or failure.
+   - `SessionDiagnostics`: Full transition history and failure recording for inspectability.
+   - `SessionManager`: Multi-session registry, active session designation, and controlled teardown.
+   - Contracts: `ISessionComponent`, `ICompositorInstance`, `IDesktopEnvironmentInstance`.
 

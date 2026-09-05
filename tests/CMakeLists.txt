@@ -7,10 +7,18 @@ set(UNIT_TESTS
     test_platform
     test_resource
     test_session
+    test_session_id
+    test_session_state
+    test_session_paths
+    test_session_environment
+    test_session_lifecycle
+    test_session_manager
+    test_session_diagnostics
 )
 
 set(INTEGRATION_TESTS
     test_lifecycle_integration
+    test_session_integration
 )
 
 foreach(test_name ${UNIT_TESTS})
@@ -28,4 +36,3 @@ foreach(test_name ${INTEGRATION_TESTS})
     target_compile_options(${test_name} PRIVATE ${LDDM_COMMON_WARNINGS})
     add_test(NAME ${test_name} COMMAND ${test_name})
 endforeach()
-
