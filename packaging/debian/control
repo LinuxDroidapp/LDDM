@@ -17,3 +17,4 @@ Description: LinuxDroid Display Manager (LDDM)
  It manages the graphical lifecycle, coordinates the Weston Wayland
  compositor, launches the LinuxDroid Desktop Environment (LDDE),
  and provides autonomous session fault recovery.
+

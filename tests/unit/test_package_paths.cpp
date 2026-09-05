@@ -42,3 +42,4 @@ TEST_CASE(PackagePaths_OverridePrecedence) {
 }
 
 TEST_MAIN()
+

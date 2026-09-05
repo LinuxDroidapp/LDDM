@@ -212,3 +212,4 @@ build-release/packages/linuxdroid-display-manager_0.1.0_arm64.deb
   ./build-release/tests/test_package_deb
   ./build-release/tests/test_package_upgrade_lifecycle
   ```
+

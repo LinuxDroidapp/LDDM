@@ -6,3 +6,4 @@ linuxdroid-display-manager (@PROJECT_VERSION@-1) unstable; urgency=medium
   * Phase L6: Production Debian packaging and filesystem layout.
 
  -- LinuxDroid Team <dev@linuxdroid.org>  @DEB_DATE@
+
