@@ -7,6 +7,12 @@
 #include "lddm/platform/signal_handler.hpp"
 #include "lddm/session/session.hpp"
 #include "lddm/session/session_manager.hpp"
+#include "lddm/weston/weston_manager.hpp"
+#include "lddm/weston/weston_config.hpp"
+#include "lddm/ldde/ldde_manager.hpp"
+#include "lddm/ldde/ldde_config.hpp"
+#include "lddm/recovery/recovery_manager.hpp"
+#include "lddm/recovery/recovery_config.hpp"
 
 #include <iostream>
 #include <string>
@@ -198,6 +204,37 @@ int main(int argc, char* argv[]) {
     }
 
     auto active_session = create_res.value();
+
+    // 1. Attach Weston compositor manager
+    lddm::weston::WestonConfig wcfg;
+    wcfg.executable = config.weston.executable;
+    wcfg.config_path = config.weston.config_path;
+    wcfg.socket_name = config.weston.socket_name.empty() ? config.session.wayland_display : config.weston.socket_name;
+    wcfg.backend = config.weston.backend;
+    wcfg.additional_args = config.weston.additional_args;
+    wcfg.startup_timeout_ms = config.process.startup_timeout_ms;
+    wcfg.stop_timeout_ms = config.process.stop_timeout_ms;
+    auto weston_mgr = std::make_shared<lddm::weston::WestonManager>(wcfg);
+    active_session->attach_compositor(weston_mgr);
+
+    // 2. Attach LDDE desktop environment manager
+    lddm::ldde::LddeConfig lcfg;
+    lcfg.executable = config.ldde.executable;
+    lcfg.session_target = config.ldde.session_target;
+    lcfg.autostart = config.ldde.autostart;
+    lcfg.startup_timeout_ms = config.process.startup_timeout_ms;
+    lcfg.stop_timeout_ms = config.process.stop_timeout_ms;
+    lcfg.readiness_timeout_ms = config.process.startup_timeout_ms;
+    auto ldde_mgr = std::make_shared<lddm::ldde::LddeManager>(lcfg);
+    active_session->attach_desktop(ldde_mgr);
+
+    // 3. Attach Recovery manager
+    lddm::recovery::RecoveryConfig rcfg;
+    rcfg.max_attempts = config.process.max_restart_count;
+    rcfg.window_ms = config.process.restart_window_seconds * 1000;
+    auto rec_mgr = std::make_shared<lddm::recovery::RecoveryManager>(active_session.get(), rcfg);
+    active_session->attach_recovery(rec_mgr);
+
     if (auto init_res = active_session->initialize(); !init_res) {
         LDDM_LOG_ERROR(lddm::LogSubsystem::SESSION, "Failed to initialize session: {}", init_res.error().to_string());
         (void)lifecycle.transition_to(lddm::LifecycleState::FAILED, "Session initialization failed");

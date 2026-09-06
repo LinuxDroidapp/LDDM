@@ -32,8 +32,25 @@ static std::string exec_cmd(const std::string& cmd) {
 }
 
 TEST_CASE(PackageDeb_BuildAndMetadataValidation) {
-    std::string root_dir = "/workspaces/LDDM";
-    std::string build_dir = "/workspaces/LDDM/build-release";
+    std::string root_dir = "/workspaces/LinuxDroid/vendor/LDDM";
+    if (const char* env_dir = std::getenv("LDDM_SOURCE_DIR")) {
+        root_dir = env_dir;
+    } else if (!std::filesystem::exists(root_dir) && std::filesystem::exists("/workspaces/LDDM")) {
+        root_dir = "/workspaces/LDDM";
+    }
+    std::filesystem::path cwd = std::filesystem::current_path();
+    std::filesystem::path p = cwd;
+    std::string build_dir;
+    while (!p.empty() && p != p.root_path()) {
+        if (std::filesystem::exists(p / "CMakeCache.txt")) {
+            build_dir = p.string();
+            break;
+        }
+        p = p.parent_path();
+    }
+    if (build_dir.empty()) {
+        build_dir = root_dir + "/build-release";
+    }
     std::string out_dir = build_dir + "/packages";
 
     // 1. Build package via script if not already present

@@ -130,7 +130,7 @@ sed -e "s/@PROJECT_VERSION@/${VERSION}/g" \
     -e "s/@DEB_ARCH@/${TARGET_ARCH}/g" \
     "${ROOT_DIR}/packaging/debian/control.in" > "${DEBIAN_DIR}/control"
 
-cp "${ROOT_DIR}/packaging/debian/conffiles" "${DEBIAN_DIR}/"
+grep -v '^[[:space:]]*$' "${ROOT_DIR}/packaging/debian/conffiles" > "${DEBIAN_DIR}/conffiles"
 cp "${ROOT_DIR}/packaging/debian/postinst" "${DEBIAN_DIR}/"
 cp "${ROOT_DIR}/packaging/debian/prerm" "${DEBIAN_DIR}/"
 cp "${ROOT_DIR}/packaging/debian/postrm" "${DEBIAN_DIR}/"

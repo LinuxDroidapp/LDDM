@@ -70,8 +70,11 @@ Result<std::string> LddeExecutableResolver::resolve(const std::string& preferred
 
     // Standard Linux paths
     const std::vector<std::string> standard_paths = {
+        "/usr/bin/ldde",
         "/usr/bin/ldde-session",
+        "/usr/local/bin/ldde",
         "/usr/local/bin/ldde-session",
+        "/opt/linuxdroid/bin/ldde",
         "/opt/linuxdroid/bin/ldde-session"
     };
 
@@ -94,9 +97,13 @@ Result<std::string> LddeExecutableResolver::resolve(const std::string& preferred
 
             std::string dir = path_str.substr(start, end - start);
             if (!dir.empty()) {
-                std::filesystem::path candidate = std::filesystem::path(dir) / "ldde-session";
-                if (access(candidate.c_str(), X_OK) == 0) {
-                    return Result<std::string>::success(candidate.string());
+                std::filesystem::path candidate1 = std::filesystem::path(dir) / "ldde";
+                if (access(candidate1.c_str(), X_OK) == 0) {
+                    return Result<std::string>::success(candidate1.string());
+                }
+                std::filesystem::path candidate2 = std::filesystem::path(dir) / "ldde-session";
+                if (access(candidate2.c_str(), X_OK) == 0) {
+                    return Result<std::string>::success(candidate2.string());
                 }
             }
 
