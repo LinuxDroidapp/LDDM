@@ -4,6 +4,7 @@
 #include "lddm/logging/logger.hpp"
 #include <fstream>
 #include <filesystem>
+#include <unistd.h>
 
 namespace lddm {
 
@@ -21,9 +22,27 @@ Session::Session(SessionConfig config)
     identity_.username = config_.user;
     identity_.created_at = SystemClock::now();
 
-    // Hook state transitions into diagnostics
+    // Hook state transitions into diagnostics and state file
     state_machine_.register_observer([this](const SessionTransitionEvent& ev) {
         diagnostics_.record_state_transition(ev);
+        switch (ev.to) {
+            case SessionState::RECOVERING:
+                write_state_file("GRAPHICAL_SESSION_RECOVERING");
+                break;
+            case SessionState::STOPPING:
+                write_state_file("STOPPING");
+                break;
+            case SessionState::STOPPED:
+                if (!config_.clean_runtime_dir_on_stop) {
+                    write_state_file("STOPPED");
+                }
+                break;
+            case SessionState::FAILED:
+                write_state_file("GRAPHICAL_SESSION_FAILED");
+                break;
+            default:
+                break;
+        }
     });
 
     LDDM_LOG_INFO(LogSubsystem::SESSION, "Session '{}' created for user '{}' (type: {})",
@@ -109,21 +128,27 @@ Result<void> Session::transition_to(SessionState target, std::string reason) {
 
 void Session::write_state_file(const std::string& state_name) {
     try {
+        if (state_name == "STOPPED" && config_.clean_runtime_dir_on_stop) {
+            return;
+        }
         std::error_code ec;
-        std::vector<std::filesystem::path> candidate_paths = {
-            paths_.state_dir() / "session_state",
-            paths_.runtime_dir() / "lddm.state"
-        };
+        std::vector<std::filesystem::path> candidate_paths;
+        if (!config_.clean_runtime_dir_on_stop || paths_.exists()) {
+            candidate_paths.push_back(paths_.state_dir() / "session_state");
+            candidate_paths.push_back(paths_.runtime_dir() / "lddm.state");
+        }
         if (auto xdg = Environment::get("XDG_RUNTIME_DIR"); xdg && !xdg->empty()) {
             candidate_paths.push_back(std::filesystem::path(*xdg) / "session_state");
             candidate_paths.push_back(std::filesystem::path(*xdg) / "lddm.state");
         }
+        auto now_t = SystemClock::to_time_t(SystemClock::now());
         for (const auto& p : candidate_paths) {
             std::filesystem::create_directories(p.parent_path(), ec);
             std::ofstream out(p, std::ios::trunc);
             if (out.is_open()) {
                 out << "STATE=" << state_name << "\n";
-                auto now_t = SystemClock::to_time_t(SystemClock::now());
+                out << "SESSION_ID=" << identity_.id.str() << "\n";
+                out << "PID=" << ::getpid() << "\n";
                 out << "TIMESTAMP=" << now_t << "\n";
                 out.flush();
             }
@@ -163,23 +188,24 @@ Result<void> Session::initialize() {
             LDDM_LOG_WARN(LogSubsystem::SESSION, "[Session '{}'] Supervised process '{}' (PID: {}) ended unexpectedly",
                           identity_.id.str(), event.process_name, event.pid);
             if (recovery_ && state_machine_.state() == SessionState::RUNNING) {
+                write_state_file("GRAPHICAL_SESSION_RECOVERING");
                 if (event.process_name.find("weston") != std::string::npos) {
-                    LDDM_LOG_WARN(LogSubsystem::SESSION, "[Session '{}'] Triggering recovery for Weston compositor", identity_.id.str());
-                    write_state_file("WESTON_STARTING");
+                    LDDM_LOG_WARN(LogSubsystem::SESSION, "[WARN] Weston exited unexpectedly");
+                    LDDM_LOG_WARN(LogSubsystem::SESSION, "[WARN] Graphical session degraded");
                     auto rec_res = recovery_->recover(recovery::RecoveryReason::WestonUnexpectedExit, "weston");
                     if (rec_res.has_value()) {
                         write_state_file("GUI_READY");
                     } else {
-                        write_state_file("FAILED");
+                        write_state_file("GRAPHICAL_SESSION_FAILED");
                     }
                 } else if (event.process_name.find("ldde") != std::string::npos) {
-                    LDDM_LOG_WARN(LogSubsystem::SESSION, "[Session '{}'] Triggering recovery for LDDE desktop", identity_.id.str());
-                    write_state_file("LDDE_STARTING");
+                    LDDM_LOG_WARN(LogSubsystem::SESSION, "[WARN] LDDE exited unexpectedly");
+                    LDDM_LOG_WARN(LogSubsystem::SESSION, "[WARN] Graphical session degraded");
                     auto rec_res = recovery_->recover(recovery::RecoveryReason::LddeUnexpectedExit, "ldde");
                     if (rec_res.has_value()) {
                         write_state_file("GUI_READY");
                     } else {
-                        write_state_file("FAILED");
+                        write_state_file("GRAPHICAL_SESSION_FAILED");
                     }
                 }
             }
@@ -269,7 +295,7 @@ Result<void> Session::start() {
                     (void)(*it)->stop();
                 }
                 (void)state_machine_.transition_to(SessionState::FAILED, "Component failed to start: " + comp->name());
-                write_state_file("FAILED");
+                write_state_file("GRAPHICAL_SESSION_FAILED");
                 return res;
             }
 
@@ -294,7 +320,7 @@ Result<void> Session::start() {
             (void)(*it)->stop();
         }
         (void)state_machine_.transition_to(SessionState::FAILED, "Failed to enter RUNNING state");
-        write_state_file("FAILED");
+        write_state_file("GRAPHICAL_SESSION_FAILED");
         return run_trans;
     }
 

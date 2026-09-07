@@ -231,7 +231,11 @@ Result<void> RecoveryManager::verify_graphical_session_readiness() {
 }
 
 Result<void> RecoveryManager::recover_ldde_component(RecoveryReason /*reason*/) {
-    LDDM_LOG_INFO(LogSubsystem::RECOVERY, "Initiating component recovery for LDDE");
+    LDDM_LOG_WARN(LogSubsystem::RECOVERY, "[WARN] LDDE exited unexpectedly");
+    LDDM_LOG_WARN(LogSubsystem::RECOVERY, "[WARN] Graphical session degraded");
+    if (session_) {
+        session_->write_state_file("GRAPHICAL_SESSION_RECOVERING");
+    }
 
     auto comp = session_->compositor();
     if (comp && (!comp->is_running() || !is_wayland_socket_active(comp->socket_path()))) {
@@ -248,9 +252,11 @@ Result<void> RecoveryManager::recover_ldde_component(RecoveryReason /*reason*/) 
     }
 
     // 1. Quiesce LDDE
+    LDDM_LOG_INFO(LogSubsystem::RECOVERY, "[INFO] Stopping LDDE");
     (void)desk->stop();
 
     // 2. Clean LDDE resources
+    LDDM_LOG_INFO(LogSubsystem::RECOVERY, "[INFO] Cleaning stale LDDE resources");
     desk->cleanup_resources();
     clean_stale_ldde_resources();
 
@@ -261,7 +267,7 @@ Result<void> RecoveryManager::recover_ldde_component(RecoveryReason /*reason*/) 
     state_ = RecoveryState::Verifying;
     diagnostics_.set_current_state(RecoveryState::Verifying);
 
-    LDDM_LOG_INFO(LogSubsystem::RECOVERY, "[INFO] Starting LDDE");
+    LDDM_LOG_INFO(LogSubsystem::RECOVERY, "[INFO] Restarting LDDE");
     if (session_) {
         session_->write_state_file("LDDE_STARTING");
     }
@@ -294,7 +300,11 @@ Result<void> RecoveryManager::recover_ldde_component(RecoveryReason /*reason*/) 
 }
 
 Result<void> RecoveryManager::recover_weston_component(RecoveryReason /*reason*/) {
-    LDDM_LOG_INFO(LogSubsystem::RECOVERY, "Initiating component recovery for Weston (and dependent LDDE)");
+    LDDM_LOG_WARN(LogSubsystem::RECOVERY, "[WARN] Weston exited unexpectedly");
+    LDDM_LOG_WARN(LogSubsystem::RECOVERY, "[WARN] Graphical session degraded");
+    if (session_) {
+        session_->write_state_file("GRAPHICAL_SESSION_RECOVERING");
+    }
 
     auto comp = dynamic_cast<weston::WestonManager*>(session_->compositor());
     if (!comp) {
@@ -308,6 +318,7 @@ Result<void> RecoveryManager::recover_weston_component(RecoveryReason /*reason*/
 
     // 1. Stop LDDE first (reverse dependency ordering)
     if (desk) {
+        LDDM_LOG_INFO(LogSubsystem::RECOVERY, "[INFO] Stopping LDDE");
         (void)desk->stop();
         desk->cleanup_resources();
         clean_stale_ldde_resources();
@@ -316,6 +327,7 @@ Result<void> RecoveryManager::recover_weston_component(RecoveryReason /*reason*/
     // 2. Stop Weston
     (void)comp->stop();
     comp->cleanup_resources();
+    LDDM_LOG_INFO(LogSubsystem::RECOVERY, "[INFO] Cleaning stale Wayland state");
     clean_stale_wayland_socket(comp->socket_path());
 
     // 3. Reset Weston
@@ -325,7 +337,7 @@ Result<void> RecoveryManager::recover_weston_component(RecoveryReason /*reason*/
     state_ = RecoveryState::Verifying;
     diagnostics_.set_current_state(RecoveryState::Verifying);
 
-    LDDM_LOG_INFO(LogSubsystem::RECOVERY, "[INFO] Starting Weston");
+    LDDM_LOG_INFO(LogSubsystem::RECOVERY, "[INFO] Restarting Weston");
     if (session_) {
         session_->write_state_file("WESTON_STARTING");
     }
@@ -351,7 +363,7 @@ Result<void> RecoveryManager::recover_weston_component(RecoveryReason /*reason*/
     // 6. Restart LDDE against the recovered compositor
     if (desk) {
         desk->reset();
-        LDDM_LOG_INFO(LogSubsystem::RECOVERY, "[INFO] Starting LDDE");
+        LDDM_LOG_INFO(LogSubsystem::RECOVERY, "[INFO] Restarting LDDE");
         if (session_) {
             session_->write_state_file("LDDE_STARTING");
         }
@@ -535,6 +547,7 @@ Result<void> RecoveryManager::recover(RecoveryReason reason, const std::string& 
         diagnostics_.record_recovery_failure(current_recovery_id_, comp, reason, policy, attempt, err, std::chrono::milliseconds(0));
         state_ = RecoveryState::Failed;
         if (session_) {
+            session_->write_state_file("GRAPHICAL_SESSION_FAILED");
             (void)session_->fail(err);
         }
         return Result<void>::failure(err);
@@ -547,6 +560,10 @@ Result<void> RecoveryManager::recover(RecoveryReason reason, const std::string& 
             "Recovery policy is NoRecovery for " + comp);
         diagnostics_.record_recovery_failure(current_recovery_id_, comp, reason, policy, attempt, err, std::chrono::milliseconds(0));
         state_ = RecoveryState::Failed;
+        if (session_) {
+            session_->write_state_file("GRAPHICAL_SESSION_FAILED");
+            (void)session_->fail(err);
+        }
         return Result<void>::failure(err);
     }
 
@@ -575,6 +592,7 @@ Result<void> RecoveryManager::recover(RecoveryReason reason, const std::string& 
         diagnostics_.record_recovery_failure(current_recovery_id_, comp, reason, policy, attempt, exec_res.error(), duration);
         state_ = RecoveryState::Failed;
         if (session_) {
+            session_->write_state_file("GRAPHICAL_SESSION_FAILED");
             (void)session_->fail(exec_res.error());
         }
         return exec_res;

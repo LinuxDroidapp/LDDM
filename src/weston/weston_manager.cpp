@@ -1,4 +1,5 @@
 #include "lddm/weston/weston_manager.hpp"
+#include "lddm/weston/weston_readiness.hpp"
 #include "lddm/logging/logger.hpp"
 #include "lddm/platform/clock.hpp"
 
@@ -168,6 +169,26 @@ Result<void> WestonManager::prepare() {
             return Result<void>::failure(err);
         }
         chmod(runtime_dir_.c_str(), 0700);
+    }
+
+    // Clean stale Wayland socket and lock file if inactive
+    if (!socket_path_.empty()) {
+        std::error_code ec;
+        if (std::filesystem::exists(socket_path_, ec)) {
+            auto status = WestonReadinessDetector::check_socket(socket_path_, -1);
+            if (status != WaylandSocketStatus::WaylandConnectionUsable) {
+                LDDM_LOG_WARN(LogSubsystem::WESTON, "Cleaning stale Wayland socket before startup: {}", socket_path_);
+                std::filesystem::remove(socket_path_, ec);
+            }
+        }
+        std::string lock_path = socket_path_ + ".lock";
+        if (std::filesystem::exists(lock_path, ec)) {
+            auto status = WestonReadinessDetector::check_socket(socket_path_, -1);
+            if (status != WaylandSocketStatus::WaylandConnectionUsable) {
+                LDDM_LOG_WARN(LogSubsystem::WESTON, "Cleaning stale Wayland lock before startup: {}", lock_path);
+                std::filesystem::remove(lock_path, ec);
+            }
+        }
     }
 
     if (!log_file_.empty()) {
