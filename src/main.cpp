@@ -241,6 +241,7 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
+    LDDM_LOG_INFO(lddm::LogSubsystem::LDDM, "[INFO] Starting LDDM");
     if (auto start_res = active_session->start(); !start_res) {
         LDDM_LOG_ERROR(lddm::LogSubsystem::SESSION, "Failed to start session: {}", start_res.error().to_string());
         (void)lifecycle.transition_to(lddm::LifecycleState::FAILED, "Session startup failed");
@@ -253,11 +254,15 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
+    LDDM_LOG_INFO(lddm::LogSubsystem::LDDM, "[INFO] LDDM started");
     LDDM_LOG_INFO(lddm::LogSubsystem::LDDM, "LDDM is running. Waiting for signals...");
 
     // Event loop: wait for termination signal
     while (!lddm::SignalHandler::is_termination_requested()) {
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        if (active_session && active_session->supervisor()) {
+            active_session->supervisor()->reap_exited_processes();
+        }
     }
 
     int sig = lddm::SignalHandler::last_signal_received();

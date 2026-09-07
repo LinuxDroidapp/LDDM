@@ -59,10 +59,22 @@ TEST_CASE(PackageLifecycle_InstallUpgradeAndRemoval) {
     EXPECT_EQ(build_ret, 0);
 
     std::string deb_path;
+    std::string preferred_arch = "amd64";
+#if defined(__aarch64__) || defined(_M_ARM64)
+    preferred_arch = "arm64";
+#endif
     for (const auto& entry : std::filesystem::directory_iterator(out_dir)) {
-        if (entry.path().extension() == ".deb" && entry.path().filename().string().rfind("linuxdroid-display-manager", 0) == 0) {
+        if (entry.path().extension() == ".deb" && entry.path().filename().string().rfind("linuxdroid-display-manager", 0) == 0 && entry.path().filename().string().find(preferred_arch) != std::string::npos) {
             deb_path = entry.path().string();
             break;
+        }
+    }
+    if (deb_path.empty()) {
+        for (const auto& entry : std::filesystem::directory_iterator(out_dir)) {
+            if (entry.path().extension() == ".deb" && entry.path().filename().string().rfind("linuxdroid-display-manager", 0) == 0) {
+                deb_path = entry.path().string();
+                break;
+            }
         }
     }
     EXPECT_FALSE(deb_path.empty());

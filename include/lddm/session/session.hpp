@@ -57,6 +57,7 @@ public:
     [[nodiscard]] recovery::RecoveryManager* recovery() const noexcept { return recovery_.get(); }
 
     [[nodiscard]] bool is_graphical_session_ready() const noexcept;
+    void write_state_file(const std::string& state_name);
 
     // Lifecycle Operations
     Result<void> initialize();

@@ -61,11 +61,15 @@ Result<std::string> LddeExecutableResolver::resolve(const std::string& preferred
         if (access(preferred_path.c_str(), X_OK) == 0) {
             return Result<std::string>::success(preferred_path);
         }
-        return Result<std::string>::failure(Error(
-            ErrorCategory::Desktop,
-            ErrorCode::LddeExecutableNotFound,
-            "Configured LDDE executable not found or not executable: " + preferred_path,
-            "executable=" + preferred_path));
+        // If preferred_path is not one of the standard default names, fail immediately
+        if (preferred_path != "/usr/bin/ldde" && preferred_path != "/usr/bin/ldde-session" &&
+            preferred_path != "ldde" && preferred_path != "ldde-session") {
+            return Result<std::string>::failure(Error(
+                ErrorCategory::Desktop,
+                ErrorCode::LddeExecutableNotFound,
+                "Configured LDDE executable not found or not executable: " + preferred_path,
+                "executable=" + preferred_path));
+        }
     }
 
     // Standard Linux paths

@@ -176,20 +176,26 @@ void RecoveryManager::clean_stale_ldde_resources() {
         return;
     }
 
+    std::error_code ec;
+    auto desk = dynamic_cast<ldde::LddeManager*>(session_->desktop());
+    if (desk && !desk->readiness_path().empty()) {
+        std::filesystem::remove(desk->readiness_path(), ec);
+    }
+
     auto runtime_dir = session_->paths().runtime_dir();
     if (runtime_dir.empty()) {
         return;
     }
 
-    std::error_code ec;
-    auto ready_file = runtime_dir / "ldde-ready";
-    if (std::filesystem::exists(ready_file, ec)) {
-        std::filesystem::remove(ready_file, ec);
-    }
-
-    auto ready_sock = runtime_dir / "ldde-ready.sock";
-    if (std::filesystem::exists(ready_sock, ec)) {
-        std::filesystem::remove(ready_sock, ec);
+    const std::string candidate_files[] = {
+        "ldde-ready", "ldde.ready", "ldde-session.ready",
+        "ldde-ready.sock", "ldde.ready.sock", "ldde-session.ready.sock"
+    };
+    for (const auto& name : candidate_files) {
+        auto p = runtime_dir / name;
+        if (std::filesystem::exists(p, ec)) {
+            std::filesystem::remove(p, ec);
+        }
     }
 }
 
@@ -255,6 +261,11 @@ Result<void> RecoveryManager::recover_ldde_component(RecoveryReason /*reason*/) 
     state_ = RecoveryState::Verifying;
     diagnostics_.set_current_state(RecoveryState::Verifying);
 
+    LDDM_LOG_INFO(LogSubsystem::RECOVERY, "[INFO] Starting LDDE");
+    if (session_) {
+        session_->write_state_file("LDDE_STARTING");
+    }
+
     auto start_res = desk->start();
     if (!start_res.has_value()) {
         LDDM_LOG_ERROR(LogSubsystem::RECOVERY, "Failed to restart LDDE: {}", start_res.error().message());
@@ -267,7 +278,19 @@ Result<void> RecoveryManager::recover_ldde_component(RecoveryReason /*reason*/) 
         return ready_res;
     }
 
-    return verify_graphical_session_readiness();
+    LDDM_LOG_INFO(LogSubsystem::RECOVERY, "[INFO] LDDE ready");
+    if (session_) {
+        session_->write_state_file("LDDE_READY");
+    }
+
+    auto v_res = verify_graphical_session_readiness();
+    if (v_res.has_value()) {
+        LDDM_LOG_INFO(LogSubsystem::RECOVERY, "[INFO] GUI ready");
+        if (session_) {
+            session_->write_state_file("GUI_READY");
+        }
+    }
+    return v_res;
 }
 
 Result<void> RecoveryManager::recover_weston_component(RecoveryReason /*reason*/) {
@@ -302,6 +325,11 @@ Result<void> RecoveryManager::recover_weston_component(RecoveryReason /*reason*/
     state_ = RecoveryState::Verifying;
     diagnostics_.set_current_state(RecoveryState::Verifying);
 
+    LDDM_LOG_INFO(LogSubsystem::RECOVERY, "[INFO] Starting Weston");
+    if (session_) {
+        session_->write_state_file("WESTON_STARTING");
+    }
+
     // 5. Restart Weston
     auto weston_start = comp->start();
     if (!weston_start.has_value()) {
@@ -315,9 +343,19 @@ Result<void> RecoveryManager::recover_weston_component(RecoveryReason /*reason*/
         return weston_ready;
     }
 
+    LDDM_LOG_INFO(LogSubsystem::RECOVERY, "[INFO] Weston ready");
+    if (session_) {
+        session_->write_state_file("WESTON_READY");
+    }
+
     // 6. Restart LDDE against the recovered compositor
     if (desk) {
         desk->reset();
+        LDDM_LOG_INFO(LogSubsystem::RECOVERY, "[INFO] Starting LDDE");
+        if (session_) {
+            session_->write_state_file("LDDE_STARTING");
+        }
+
         auto ldde_start = desk->start();
         if (!ldde_start.has_value()) {
             LDDM_LOG_ERROR(LogSubsystem::RECOVERY, "Failed to restart LDDE against recovered Weston: {}", ldde_start.error().message());
@@ -329,9 +367,21 @@ Result<void> RecoveryManager::recover_weston_component(RecoveryReason /*reason*/
             LDDM_LOG_ERROR(LogSubsystem::RECOVERY, "LDDE failed readiness after Weston recovery: {}", ldde_ready.error().message());
             return ldde_ready;
         }
+
+        LDDM_LOG_INFO(LogSubsystem::RECOVERY, "[INFO] LDDE ready");
+        if (session_) {
+            session_->write_state_file("LDDE_READY");
+        }
     }
 
-    return verify_graphical_session_readiness();
+    auto v_res = verify_graphical_session_readiness();
+    if (v_res.has_value()) {
+        LDDM_LOG_INFO(LogSubsystem::RECOVERY, "[INFO] GUI ready");
+        if (session_) {
+            session_->write_state_file("GUI_READY");
+        }
+    }
+    return v_res;
 }
 
 Result<void> RecoveryManager::execute_session_restart(RecoveryReason /*reason*/) {

@@ -275,6 +275,9 @@ Result<void> WestonManager::start() {
     diagnostics_.set_pid(process_->pid());
     diagnostics_.record_start_time();
 
+    LDDM_LOG_INFO(LogSubsystem::WESTON, "[INFO] Weston process started");
+    LDDM_LOG_INFO(LogSubsystem::WESTON, "[INFO] Waiting for Wayland readiness");
+
     (void)transition_to(WestonState::WaitingReady, "Waiting for Wayland socket readiness");
 
     // Unlock mutex while waiting for socket readiness to prevent deadlock
@@ -304,6 +307,7 @@ Result<void> WestonManager::start() {
     (void)transition_to(WestonState::Running, "Wayland socket verified ready");
     diagnostics_.record_ready_time();
 
+    LDDM_LOG_INFO(LogSubsystem::WESTON, "[INFO] Weston ready");
     LDDM_LOG_INFO(LogSubsystem::WESTON, "Weston running (PID: {}, Socket: {})",
                   process_->pid(), socket_path_);
 
@@ -376,14 +380,14 @@ void WestonManager::on_process_event(const process::ProcessEvent& event) {
     std::lock_guard lock(mutex_);
 
     if (process_ && event.pid == process_->pid()) {
-        if (event.type == process::ProcessEventType::Exited) {
+        if (event.type == process::ProcessEventType::Exited ||
+            event.type == process::ProcessEventType::Signaled) {
             diagnostics_.record_exit_info(event.exit_info);
 
             if (state_ == WestonState::Running ||
                 state_ == WestonState::WaitingReady ||
                 state_ == WestonState::Starting) {
-                std::string reason = "Weston process exited unexpectedly (code " +
-                                     std::to_string(event.exit_info.exit_code) + ")";
+                std::string reason = "Weston process exited unexpectedly (" + event.exit_info.format() + ")";
                 LDDM_LOG_ERROR(LogSubsystem::WESTON, "{}", reason);
 
                 diagnostics_.record_error(Error(

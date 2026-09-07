@@ -273,6 +273,9 @@ Result<void> LddeManager::start() {
     diagnostics_.set_pid(process_->pid());
     diagnostics_.record_start_time();
 
+    LDDM_LOG_INFO(LogSubsystem::LDDE, "[INFO] LDDE process started");
+    LDDM_LOG_INFO(LogSubsystem::LDDE, "[INFO] Waiting for LDDE readiness");
+
     (void)transition_to(LddeState::WaitingReady, "Waiting for LDDE readiness");
 
     // Unlock mutex during blocking readiness wait to prevent deadlock
@@ -303,6 +306,7 @@ Result<void> LddeManager::start() {
     (void)transition_to(LddeState::Running, "LDDE verified ready");
     diagnostics_.record_ready_time();
 
+    LDDM_LOG_INFO(LogSubsystem::LDDE, "[INFO] LDDE ready");
     LDDM_LOG_INFO(LogSubsystem::LDDE, "LDDE running (PID: {}, Target: {})",
                   process_->pid(), config_.session_target);
 

@@ -1,6 +1,9 @@
 #include "lddm/session/session.hpp"
 #include "lddm/recovery/recovery_manager.hpp"
+#include "lddm/platform/environment.hpp"
 #include "lddm/logging/logger.hpp"
+#include <fstream>
+#include <filesystem>
 
 namespace lddm {
 
@@ -104,6 +107,32 @@ Result<void> Session::transition_to(SessionState target, std::string reason) {
     return state_machine_.transition_to(target, std::move(reason));
 }
 
+void Session::write_state_file(const std::string& state_name) {
+    try {
+        std::error_code ec;
+        std::vector<std::filesystem::path> candidate_paths = {
+            paths_.state_dir() / "session_state",
+            paths_.runtime_dir() / "lddm.state"
+        };
+        if (auto xdg = Environment::get("XDG_RUNTIME_DIR"); xdg && !xdg->empty()) {
+            candidate_paths.push_back(std::filesystem::path(*xdg) / "session_state");
+            candidate_paths.push_back(std::filesystem::path(*xdg) / "lddm.state");
+        }
+        for (const auto& p : candidate_paths) {
+            std::filesystem::create_directories(p.parent_path(), ec);
+            std::ofstream out(p, std::ios::trunc);
+            if (out.is_open()) {
+                out << "STATE=" << state_name << "\n";
+                auto now_t = SystemClock::to_time_t(SystemClock::now());
+                out << "TIMESTAMP=" << now_t << "\n";
+                out.flush();
+            }
+        }
+    } catch (...) {
+        // Non-blocking best-effort
+    }
+}
+
 Result<void> Session::initialize() {
     std::lock_guard lock(mutex_);
 
@@ -127,6 +156,35 @@ Result<void> Session::initialize() {
     // 2b. Initialize Process Supervisor
     supervisor_ = std::make_shared<ProcessSupervisor>();
     supervisor_->set_base_environment(environment_.to_vector());
+
+    // Register supervisor exit listener for automatic recovery
+    supervisor_->register_listener([this](const ProcessEvent& event) {
+        if (event.type == ProcessEventType::Exited || event.type == ProcessEventType::Signaled) {
+            LDDM_LOG_WARN(LogSubsystem::SESSION, "[Session '{}'] Supervised process '{}' (PID: {}) ended unexpectedly",
+                          identity_.id.str(), event.process_name, event.pid);
+            if (recovery_ && state_machine_.state() == SessionState::RUNNING) {
+                if (event.process_name.find("weston") != std::string::npos) {
+                    LDDM_LOG_WARN(LogSubsystem::SESSION, "[Session '{}'] Triggering recovery for Weston compositor", identity_.id.str());
+                    write_state_file("WESTON_STARTING");
+                    auto rec_res = recovery_->recover(recovery::RecoveryReason::WestonUnexpectedExit, "weston");
+                    if (rec_res.has_value()) {
+                        write_state_file("GUI_READY");
+                    } else {
+                        write_state_file("FAILED");
+                    }
+                } else if (event.process_name.find("ldde") != std::string::npos) {
+                    LDDM_LOG_WARN(LogSubsystem::SESSION, "[Session '{}'] Triggering recovery for LDDE desktop", identity_.id.str());
+                    write_state_file("LDDE_STARTING");
+                    auto rec_res = recovery_->recover(recovery::RecoveryReason::LddeUnexpectedExit, "ldde");
+                    if (rec_res.has_value()) {
+                        write_state_file("GUI_READY");
+                    } else {
+                        write_state_file("FAILED");
+                    }
+                }
+            }
+        }
+    });
 
     // 3. Initialize attached components with session context
     auto ctx = context();
@@ -195,6 +253,14 @@ Result<void> Session::start() {
     std::vector<std::shared_ptr<ISessionComponent>> started;
     for (const auto& comp : components_) {
         if (comp) {
+            if (comp == compositor_) {
+                LDDM_LOG_INFO(LogSubsystem::SESSION, "[INFO] Starting Weston");
+                write_state_file("WESTON_STARTING");
+            } else if (comp == desktop_) {
+                LDDM_LOG_INFO(LogSubsystem::SESSION, "[INFO] Starting LDDE");
+                write_state_file("LDDE_STARTING");
+            }
+
             auto res = comp->start();
             if (!res.has_value()) {
                 diagnostics_.record_error(res.error());
@@ -203,8 +269,18 @@ Result<void> Session::start() {
                     (void)(*it)->stop();
                 }
                 (void)state_machine_.transition_to(SessionState::FAILED, "Component failed to start: " + comp->name());
+                write_state_file("FAILED");
                 return res;
             }
+
+            if (comp == compositor_) {
+                LDDM_LOG_INFO(LogSubsystem::SESSION, "[INFO] Weston ready");
+                write_state_file("WESTON_READY");
+            } else if (comp == desktop_) {
+                LDDM_LOG_INFO(LogSubsystem::SESSION, "[INFO] LDDE ready");
+                write_state_file("LDDE_READY");
+            }
+
             started.push_back(comp);
         }
     }
@@ -218,9 +294,12 @@ Result<void> Session::start() {
             (void)(*it)->stop();
         }
         (void)state_machine_.transition_to(SessionState::FAILED, "Failed to enter RUNNING state");
+        write_state_file("FAILED");
         return run_trans;
     }
 
+    write_state_file("GUI_READY");
+    LDDM_LOG_INFO(LogSubsystem::SESSION, "[INFO] GUI ready");
     LDDM_LOG_INFO(LogSubsystem::SESSION, "[Session '{}'] Running", identity_.id.str());
     return Result<void>::success();
 }
